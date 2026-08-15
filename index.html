@@ -1,0 +1,802 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta http-equiv="Cache-Control" content="no-cache,must-revalidate">
+<title>·</title><style>
+*{box-sizing:border-box}body{margin:0;padding:10px 10px 40px;background:#f4f6f9;font-family:-apple-system,"Noto Sans TC",sans-serif;color:#222;-webkit-text-size-adjust:100%}
+h1{font-size:18px;color:#1f497d;margin:2px 0}
+.warn{font-size:12px;color:#888;margin:2px 0 8px}
+.sum{font-size:12px;color:#555;margin-bottom:10px;line-height:1.6}
+.sc{font-size:12px;color:#444;background:#eef2f7;border-radius:10px;padding:9px 11px;margin-bottom:10px;line-height:1.7}
+.sc .g{color:#8a94a0}
+/* ★時間軸進度條（#684）：取代原本那排看不懂的 T-24 › T-18 › … */
+.tlh{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:2px 10px;font-size:13px;color:#24303c;margin-bottom:9px;line-height:1.5}
+.tlh .g{white-space:nowrap;font-size:12px}
+/* ★D 款：等距格子＋倒數時數（#687 主人選定：「走 D，但請使用倒數 24h，不要用真實時間」）
+   ─ 等距＝不照真實時間比例排（原本按比例，最後 4 次檢查點會擠成一團看不出來）
+   ─ 格子下標的是【開抽前幾小時】（24/18/12/6/3.5/2.5/1.5/0.5），不是時刻 */
+.dbar{display:flex;gap:4px;margin:0 1px}
+.dc{flex:1;text-align:center;min-width:0}
+.db{height:14px;border-radius:4px;background:#dde3ea}
+.dc.dn .db{background:#1f497d}
+.dc.now .db{background:#fff;border:2px solid #e11d48;box-sizing:border-box}
+.dt{font-size:10px;color:#9aa4b0;margin-top:4px;letter-spacing:-.3px}
+.dc.dn .dt{color:#1f497d;font-weight:700}
+.dc.now .dt{color:#e11d48;font-weight:700}
+.tlf{display:flex;justify-content:space-between;font-size:11px;color:#6b7683}
+/* ★券已過期的警示橫幅（#684）：紅底白字，不可能看不到 */
+.exp{background:#c62828;color:#fff;border-radius:8px;padding:7px 11px;margin:-2px 0 10px;font-size:13px;line-height:1.5}
+.exp b{color:#ffe082}
+.exp.ok{background:#e8eef5;color:#1f497d}.exp.ok b{color:#12305a}
+/* ★sticky 容器＝分頁列＋區域快速鍵（#685），捲到哪都能切分頁/跳區域 */
+.stick{position:sticky;top:0;background:#f4f6f9;padding:6px 0 8px;margin-bottom:10px;z-index:5;box-shadow:0 6px 8px -6px rgba(0,0,0,.12)}
+.tabs{display:flex;gap:18px;flex:1 1 auto;min-width:0;border-bottom:1px solid #dfe5ec}
+.jmp{display:flex;gap:6px;overflow-x:auto;margin-top:7px;-webkit-overflow-scrolling:touch}
+.jb{flex:0 0 auto;font-size:13px;padding:6px 11px;border-radius:14px;background:#fff;color:#1f497d;border:1px solid #cdd6e0;font-weight:700;white-space:nowrap}
+/* ★#964 時段膠囊：一次只看一個時段。灰＝還沒開抽、深藍＝已開抽、實心＝目前選的 */
+/* ★★#966（主人 2026-08-27：「順位跟時空膠囊有兩排，做出個區隔」）：
+   原本兩排都是深藍實心膠囊 ⇒ 看起來像同一種控制項，分不出「切分頁」和「切時段」。
+   ⇒ 三重區隔：①上方虛線分隔 ②左邊固定標籤「⏰ 開抽時段」 ③改用【琥珀色系】。
+   ★刻意不用綠/藍/紅——那三色在本板已有固定語意（綠一般／藍最後點／紅高順位），
+     琥珀是板上沒用過的顏色，不會跟券的語意打架。 */
+/* ★#1036（主人：「欄位的上下太擠、按鈕沒有區別性、整個完全不行」）：
+   #1035 我為了對齊把「日期／時段」標籤拿掉 ⇒ 三列變成同形同寬的膠囊，
+   看起來就是一個 2x2 按鈕方陣，**完全分不出哪一列是哪一層**。標籤才是辨識度的來源。
+   ⇒ 改成：每列都有標籤、標籤【固定寬度】⇒ 三列的膠囊起點自動對齊（辨識度與對齊兩者兼得）；
+      整組只在最上面一條虛線（原本每列各一條、而分頁列又沒有＝分組線自己就不一致）；
+      列與列之間留 10px 呼吸空間。 */
+.sltw{display:flex;align-items:center;gap:12px;margin-top:13px;padding-top:13px;border-top:1px dashed #cdd6e0}
+.sltw + .sltw{border-top:0;padding-top:0;margin-top:12px}
+/* ★#1039（主人：「日期/時段/檢視 這三個文字的標題列不夠理想」）：
+   最刺眼的是第3列——標籤 13px 灰字，跟它右邊的分頁文字幾乎同級
+   ⇒「檢視 高順位 依門市」讀起來像【三個分頁】，而不是「標籤＋兩個分頁」。
+   ⇒ 標籤改成明確的【欄位標籤】語彙：更小(11px)、更淡、加字距、左對齊固定欄寬，
+      並且【絕不與任何控制項同級】。 */
+.nlab{flex:0 0 36px;font-size:11px;font-weight:700;color:#9aa7b5;text-align:left;white-space:nowrap;letter-spacing:1.5px;line-height:1.3}
+.sltl{flex:0 0 auto;font-size:12px;font-weight:800;color:#8a6d3b;background:#fff5e6;border:1px solid #f0d9a8;border-radius:8px;padding:4px 8px;white-space:nowrap}
+.slt{display:flex;gap:6px;flex-wrap:wrap;flex:1 1 auto;min-width:0}
+.sb,.dpk{flex:0 0 auto;font-size:13px;padding:6px 12px;border-radius:14px;background:#fffaf0;color:#9a8a6a;border:1.5px solid #ecd9ae;font-weight:800;white-space:nowrap}
+.dpk{background:#f5f8fc;color:#5b6b7f;border-color:#c6d4e6}
+.dpk.on{background:#1f497d;color:#fff;border-color:#1f497d}
+/* ★#1034（主人 2026-08-29 19:3x：「日期那個擺放位置很怪，而且字還比順位小」）：
+   日期是【第一層】，卻比第三層的順位分頁字還小、又因為 flex:0 0 auto 而擠在左邊沒對齊
+   ⇒ 看起來階層是反的。★只動 .dpk/.dtl，**完全不碰 .sb/.sltl（時段列）**。 */
+/* ★#1038（主人：「能不能有更好的按鈕區隔這三種不同類型？不然都長一樣」）：
+   前面幾版都是「同一種膠囊、只改大小顏色」⇒ 型態相同，層級還是要用猜的。
+   ⇒ 改成【三種不同的控制項型態】，參考業界常見做法：
+     第1層 日期 = iOS 分段控制(segmented control)：一條灰軌道、選中那格填色浮起
+     第2層 時段 = Material filter chip：獨立膠囊、有邊框與 ▶ 圖示
+     第3層 檢視 = 底線分頁(underline tabs)：只有文字＋底線，最輕 */
+.dseg{background:#e4eaf2;border-radius:14px;padding:4px;gap:4px;flex-wrap:nowrap}
+.dpk{flex:1 1 0;text-align:center;font-size:16px;padding:9px 6px;border-radius:10px;background:transparent;color:#5b6b7f;border:0}
+.dpk.on{background:#1f497d;color:#fff;border:0;box-shadow:0 1px 3px rgba(31,73,125,.35)}
+/* ★#1035（主人：「排版你自我檢討一下」）：#1034 我只修了日期那一列 ⇒ 反而變成三列三種規格。
+   ⇒ 三列統一：都滿版、字級照層級遞減（日期15／時段14／分頁13）、左右緣對齊。 */
+.sb{flex:1 1 0;text-align:center;font-size:14px;padding:8px 6px;border-radius:999px}
+.dpk i{font-size:14px}
+.dtl{align-self:center;font-size:13px}
+.dtl{flex:0 0 auto;font-size:12px;font-weight:800;color:#1f497d;background:#eaf0f8;border:1px solid #c6d4e6;border-radius:8px;padding:4px 8px;white-space:nowrap}
+.sb.op{color:#8a6d3b;border-color:#d9a441}
+.sb.on{background:#b45309;color:#fff;border-color:#b45309}
+.sb i,.dpk i{font-style:normal;margin-left:6px;font-size:12px;opacity:.85}
+/* ★#1066【方案B】型號膠囊：沿用 .sb 的家族樣式（#1035 主人訂過「三列統一」的規格，不要又長出第四種長相）。
+   ★不用 flex:1 平分——型號可能十幾個，平分會擠成細條 ⇒ 改成內容寬＋可橫向滑。 */
+.slt.msl{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.mpk{flex:0 0 auto;text-align:center;font-size:13px;font-weight:700;padding:7px 12px;border-radius:999px;background:#fff;color:#5b6b7f;border:1px solid #cdd6e0;white-space:nowrap}
+.mpk.on{background:#1f497d;color:#fff;border-color:#1f497d}
+.mpk i{font-style:normal;margin-left:5px;font-size:11px;opacity:.85}
+.jb i{font-style:normal;font-weight:400;color:#8a94a0;margin-left:5px;font-size:11px}
+.jb:active{background:#1f497d;color:#fff}
+.tab{flex:0 0 auto;text-align:center;font-size:13px;padding:7px 2px 8px;border-radius:0;background:transparent;color:#8a97a6;font-weight:800;border-bottom:2.5px solid transparent}
+.tab.on{background:transparent;color:#1f497d;border-bottom-color:#1f497d}
+.mg{background:#fff;border-radius:12px;padding:10px;margin-bottom:9px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+/* ★卡片左邊界全板統一深藍（#682）：邊界不再參與配色語意，少一個會打架的機制 */
+.mg.hi,.mg.mid,.mg.lo{border-left:5px solid #1f497d}
+/* ★標題一律比內文大（主人 2026-08-15：「哪有標題比內文字體小的概念」）——按鈕內文 14px ⇒ 標題 ≥17px */
+.mh{display:flex;align-items:center;gap:7px;margin-bottom:8px;font-size:17px;font-weight:800;color:#16232e}
+.tg{font-size:11px;font-weight:400;background:#eef2f7;color:#1f497d;border-radius:10px;padding:2px 7px}
+.n{margin-left:auto;font-size:12px;color:#888;font-weight:400}
+/* ★#784 門市標記：字級 12px（小於門市名 17px、小於按鈕 14px＝不搶視線）。
+   ★刻意【不用】綠/藍/紅——那三色在本板已有固定語意（綠一般／藍最後點／紅高順位），
+   再拿來標 AI 會變成第四種色碼、違反「配色只表達按沒按」的定案（skill ⑥）。
+   ⇒ 中性資訊用灰、需要主人親自確認的用琥珀底，兩者都不與連結按鈕同色系。 */
+.nt{display:flex;flex-wrap:wrap;gap:5px;margin:-4px 0 7px}
+.ai{font-size:12px;color:#667;background:#eef1f5;border-radius:8px;padding:2px 8px}
+.rv2{font-size:12px;color:#667;background:#eef1f5;border-radius:8px;padding:2px 8px}
+.rv{font-size:12px;color:#7a4a00;background:#fdf0d5;border:1px solid #e8c98a;border-radius:8px;padding:2px 8px;font-weight:700}
+.ls{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+/* ★★★配色憲法（主人 2026-08-15 最終定調，別再自己加花樣）：
+     「點過就反灰就行了，但沒點過不能沒顏色，這樣毫無區別。高順位與以外，用熱力色處理就行」
+   ⇒ 只有兩件事要表達，各用一個獨立維度，互不干擾：
+     ① 有沒有按過 → 用【彩色 vs 灰色】：沒按＝彩色，按過＝反灰（實心灰）。灰色只屬於「按過」。
+     ② 型號分級 → 只在【看得到差異的分頁】用色：紅#cf3a4b＝高順位、綠#16a34a＝一般、藍#3b82f6＝黑名單。
+   ★★#682 最終決議（主人 2026-08-15 23:45：「高順位就不要搞熱力色了，實在無敵難看」）：
+     【高順位分頁整頁都是高順位 ⇒ 完全不上色，全部同一個綠】。只有「依門市/新增」分頁才色分。
+     走過的死路（別再走）：整片血紅 → 紅橘琥珀三階熱力（真機上是土色系，主人原話「無敵難看」）。
+     根因＝優先序已經被表達三次（分頁名/「高順位#2」標籤/排序本身），顏色是第四次重複，鋪滿整頁就變噪音。
+     顏色真正該扛、而且沒有別處能表達的，只有「這顆按過沒有」。
+   ★#681 追加（主人「哪有標題比內文字體小」）：字級層級固定為【縣市 20 ＞ 門市/型號 17 ＞ 按鈕內文 14】，
+     改版時不准讓任何標題掉到 14px 以下。
+   ★禁止事項：別再讓「沒按過」的任何一種變成白底/空心/淡色——那會跟「按過」搶同一個維度，
+     就是 8/15 兩次改版失敗的原因（先是黑名單白底琥珀框，後是空心虛線）。 */
+a.lk{display:flex;align-items:center;justify-content:center;text-align:center;min-height:44px;font-size:14px;padding:7px 8px;border-radius:12px;background:#16a34a;color:#fff;text-decoration:none;line-height:1.25;word-break:break-all;font-weight:700}
+/* 🔵冷＝黑名單（最後才點） */
+.mg.lo a.lk{background:#3b82f6;color:#fff}
+a.lk.lo1{background:#3b82f6;color:#fff}
+/* ★依門市模式：縣市外框 + 門市小卡（兩層）。字級層級＝縣市 20 ＞ 門市 17 ＞ 按鈕 14 */
+.cy{margin-bottom:16px}
+.cyh{font-size:20px;font-weight:800;color:#1f497d;padding:6px 4px 8px;display:flex;align-items:center;border-bottom:2px solid #1f497d;margin-bottom:9px}
+.cyh .n{margin-left:auto;font-size:12px;color:#888;font-weight:400}
+.mg.st{border-left:5px solid #1f497d;padding:10px 10px 11px;margin-bottom:8px}
+/* ★門市名＝這張卡的標題，要一眼看到（原本 14px 比按鈕還小、整個沉下去） */
+.mg.st .mh{font-size:17px;font-weight:800;color:#16232e;border-bottom:1px solid #eef1f5;padding-bottom:7px;margin-bottom:9px}
+/* 🔴高順位（只出現在「依門市／新增」分頁——高順位分頁整頁同質，不上色，見 #682） */
+a.lk.hi1{background:#cf3a4b}
+/* ★按過＝反灰（實心灰）。這是全板唯一的灰色，所以「灰＝按過」不會有歧義 */
+a.lk.done{background:#c8ccd2 !important;color:#fff !important;font-weight:400}
+/* 圖例：把顏色直接畫出來對照，不用文字解釋 */
+.lgd{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;font-size:12px;color:#666;margin:2px 0 10px}
+.lgd .ls{width:15px;height:15px;border-radius:4px;display:inline-block;margin-left:8px}
+a.lk{flex-wrap:wrap}
+a.lk.pend{background:#b9c0cb!important;color:#3f4854!important}
+a.lk.pend .pn{opacity:1;font-weight:800}
+.lk .pn{flex:0 0 100%;display:block;font-style:normal;font-weight:600;font-size:11px;opacity:.93;margin-top:3px;line-height:1.25;word-break:break-all}
+/* ★★#1064→#1065 連抽鈕位置演進（兩次都是主人指出來的）：
+   ①最初：塞在頂部【圖例列】的小膠囊 ⇒ 位置錯（滑到下面就不見了）、主次錯、太小。
+   ②改底部固定滿版 ⇒ 拇指好按，但**主人否決**：
+     「iPhone 切換多工 app 頁面時會有可能誤按」——底部是系統手勢區。
+     ★而誤按的代價很實際：連抽會【真的開一張券並標記已點】，開抽期間等於白白消耗一次機會。
+   ③現行：併進本來就存在的 **sticky 頂部列**（.stick）——
+     滑動時一直跟在畫面上方、完全避開底部手勢區、又能做成滿版大按鈕。 */
+.chnw{margin-top:8px}
+.chn{display:block;width:100%;box-sizing:border-box;text-align:center;
+  font-size:19px;font-weight:900;letter-spacing:.5px;color:#fff;background:#15803d;
+  border:0;border-radius:13px;padding:14px 12px;cursor:pointer;user-select:none;
+  box-shadow:0 3px 9px rgba(21,128,61,.32)}
+.chn:active{transform:translateY(1px);box-shadow:0 1px 4px rgba(21,128,61,.32)}
+.chn.off{background:#c7cdd6;color:#7a8494;box-shadow:none}
+.rz{float:right;font-size:12px;font-weight:700;color:#fff;background:#8a94a6;border:1px solid #6f7a8d;border-radius:999px;padding:4px 13px;cursor:pointer;user-select:none;box-shadow:0 1px 2px rgba(0,0,0,.18)}
+.rz:active{background:#6f7a8d;transform:translateY(1px)}
+.lgd .ls:first-child{margin-left:0}
+a.lk.new::before{content:"NEW ";font-size:10px;font-weight:700;color:#fff700}
+#err{padding:40px 16px;text-align:center;color:#888;font-size:14px}
+</style></head><body>
+<div id="err">缺少金鑰</div><div id="app" style="display:none"></div>
+<script>
+/* ★資料不內嵌：改成載入時抓外部 d.txt 並帶 cache-bust（[[cache-bust-cdn-freeze]]）。
+   原本把密文寫死在 HTML 裡 ⇒ 瀏覽器/CDN 快取住 HTML，主人手機就會看到【舊版】板子。
+   拆開後：外殼可快取，資料每次都是最新。 */
+let DATA="";
+function b64u(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';const r=atob(s),a=new Uint8Array(r.length);for(let i=0;i<r.length;i++)a[i]=r.charCodeAt(i);return a}
+(async function(){
+  const k=location.hash.replace(/^#/,'');
+  if(!k){return}
+  try{
+    DATA=(await (await fetch("d.txt?t="+Date.now(),{cache:"no-store"})).text()).trim();
+    const raw=b64u(k), all=b64u(DATA);
+    const key=await crypto.subtle.importKey('raw',raw,{name:'AES-CBC'},false,['decrypt']);
+    const iv=all.slice(0,16), ct=all.slice(16);
+    const pt=await crypto.subtle.decrypt({name:'AES-CBC',iv},key,ct);
+    render(JSON.parse(new TextDecoder().decode(pt)));
+  }catch(e){ document.getElementById('err').textContent='金鑰不正確'; }
+})();
+function render(d){
+  document.getElementById('err').style.display='none';
+  const app=document.getElementById('app'); app.style.display='block';
+  /* ★★#698「已點過」的反灰要在【換波次時】自動恢復顏色（主人問：「html 的反灰會在什麼時基點恢復顏色？」）
+     原本固定存 localStorage['bwdone'] 且**永遠不清**，看起來會自動重置只是因為下一波是新網址、
+     剛好不在紀錄裡而已——**靠巧合不是靠機制**。萬一某張 lin.ee 跨波次重複出現，它一開始就是灰的
+     ⇒ 主人以為點過而跳過＝漏點；而且那份紀錄每波累積 300+ 筆、永遠不會清。
+     ⇒ 改成按波次分鍵 wdone.<waveKey>：波次一換自然是空的、舊波次的鍵順手刪掉。 */
+  const DKEY='bwdone.'+(d.waveKey||'none');
+  /* 一次性搬遷：把舊的 bwdone 併進「當前波次」（現在看的就是那一波，狀態不該平白消失），然後刪掉舊鍵 */
+  try{
+    const legacy=localStorage.getItem('bwdone');
+    if(legacy && !localStorage.getItem(DKEY)){ localStorage.setItem(DKEY,legacy); }
+    if(legacy){ localStorage.removeItem('bwdone'); }
+    /* 只留當前波次，其餘 bwdone.* 一律清掉（避免無限累積） */
+    for(let i=localStorage.length-1;i>=0;i--){
+      const k=localStorage.key(i);
+      if(k && k.indexOf('bwdone.')===0 && k!==DKEY) localStorage.removeItem(k);
+    }
+  }catch(e){}
+  const done=JSON.parse(localStorage.getItem(DKEY)||'{}');
+  /* ★★#942（主人 2026-08-26：「我剛剛不小心按了」「開賣前多久要把曾經按過的歸零重算？還是乾脆給使用者自行歸零？」）
+     ─ 自動：**開抽時刻【之前】按的，一定不是真的抽**（券根本還沒開）⇒ 開抽時間一到就把那些清掉。
+       開抽【之後】按的一律不動（那才是真的抽過）⇒ 結構上不可能誤刪真紀錄。
+       舊資料相容：#942 之前存的值是 1（不是時間戳）⇒ 一律視為「開抽前」被清掉，正確。
+     ─ 手動：圖例列右邊「歸零」鈕，隨時想重來就按（會問一次確認）。 */
+  function resetPre(){
+    try{
+      var ds=d.drawIso?new Date(d.drawIso).getTime():0;
+      if(!ds||Date.now()<ds) return 0;
+      if(localStorage.getItem(DKEY+'.pre')==='1') return 0;
+      var n=0;
+      Object.keys(done).forEach(function(u){ var t=done[u]; if(!(typeof t==='number'&&t>=ds)){ delete done[u]; n++; } });
+      localStorage.setItem(DKEY,JSON.stringify(done));
+      localStorage.setItem(DKEY+'.pre','1');
+      return n;
+    }catch(e){ return 0; }
+  }
+  function resetAll(){
+    if(!confirm('把「已點過」全部歸零？(只影響這台手機的顯示、不會取消任何已送出的抽獎)')) return;
+    Object.keys(done).forEach(function(u){ delete done[u]; });
+    localStorage.setItem(DKEY,JSON.stringify(done));
+    localStorage.removeItem(DKEY+'.pre');
+    draw();
+  }
+  /* ★★#1063 連續抽選（主人 2026-08-29 指定參考對手站、08-30 拍板做）
+     ─ 要解決的：手動點券最花時間的不是點，是【每抽完一張要滑回列表找下一張】。
+     ─ 佇列＝【目前畫面上的 a.lk 順序】，直接查 DOM ⇒ 自動跟著分頁/日期/時段篩選走，
+       不必另外維護一份進度（我方板子本來就逐項記 done，對手才需要額外的佇列狀態）。
+     ─ ★還沒開抽的【自動跳過】：用每張券自己的 data-ds 判斷，不是整波一個時間。
+     ─ ★界線：每一次「下一張」都是主人的真實點擊，不是自動點（[[line-lottery-never-autoclick]]）；
+       技術上也必須如此——非使用者手勢觸發的 window.open 會被 iOS Safari 彈窗封鎖擋掉。
+     ─ ★不呼叫 draw()：整頁重畫會讓捲動位置跳掉。只改那一個元素＋更新計數。 */
+  function chainReady(a){
+    if(!a || !a.dataset) return false;
+    if(done[a.dataset.u]) return false;
+    if(a.dataset.ds && Date.now() < new Date(a.dataset.ds).getTime()) return false;
+    return true;
+  }
+  function chainNext(){
+    var list=app.querySelectorAll('a.lk');
+    for(var i=0;i<list.length;i++){ if(chainReady(list[i])) return list[i]; }
+    return null;
+  }
+  function updChain(){
+    var b=document.getElementById('chn'), bar=document.getElementById('chnw');
+    if(!b||!bar) return;
+    var list=app.querySelectorAll('a.lk'), n=0, total=0, notYet=0, soonest=0;
+    for(var i=0;i<list.length;i++){
+      total++;
+      if(chainReady(list[i])){ n++; continue; }
+      /* ★★#1139（主人 2026-09-03 12:1x 問「不能連抽的原因是？」）
+         舊寫法只有兩種話：有得抽／「✅ 這頁點完了」。
+         但 chainReady 有【兩個】否決條件：①已點過 ②還沒開抽。
+         ⇒ 開抽前整頁都被②否決，按鈕卻說「點完了」⇒ 主人合理地以為板子壞了。
+         ★這是典型「壞掉跟正常長一樣」的反面：**正常卻長得像壞掉**，一樣會誤導人。
+         ⇒ 把「還沒開抽」單獨數出來，並算出最近一場的開抽時刻。 */
+      var d=list[i].dataset;
+      if(!done[d.u] && d.ds){
+        var t=new Date(d.ds).getTime();
+        if(Date.now() < t){ notYet++; if(!soonest || t<soonest) soonest=t; }
+      }
+    }
+    /* 這一頁根本沒有券（例如空名單）⇒ 整條收起來，不要白佔畫面底部 */
+    bar.style.display = total ? 'block' : 'none';
+    if(n){
+      b.textContent = '▶ 連抽下一張（剩 '+n+'）';
+    } else if(notYet){
+      /* ★#1139：不是點完了，是【時間還沒到】。講清楚剩多久、幾點開抽。 */
+      var ms=soonest-Date.now(), hh=Math.floor(ms/3600000), mm=Math.round((ms%3600000)/60000);
+      var when=new Date(soonest);
+      var w2=function(x){return (x<10?'0':'')+x;};
+      b.textContent = '⏳ 還沒開抽（'+w2(when.getMonth()+1)+'/'+w2(when.getDate())+' '+w2(when.getHours())+':'+w2(when.getMinutes())+' 開抽，還有 '
+                    + (hh>0 ? (hh+' 小時 '+mm+' 分') : (mm+' 分')) + '）｜'+notYet+' 張待命';
+    } else {
+      b.textContent = curModel ? ('✅ '+curModel+' 點完了') : '✅ 這頁點完了';
+    }
+    b.className = n ? 'chn' : 'chn off';
+  }
+  function chainGo(){
+    var a=chainNext();
+    if(!a){ updChain(); return; }
+    window.open(a.href,'_blank','noopener');
+    a.classList.add('done');
+    done[a.dataset.u]=Date.now();
+    try{ localStorage.setItem(DKEY,JSON.stringify(done)); }catch(e){}
+    updChain();
+  }
+  /* ★#942 HTML 跳脫（品名可能含 & < > " '） */
+  function esc(x){ return String(x==null?'':x).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  let view='hi';   /* ★預設進來就是高順位（主人 2026-08-15 指定） */
+  let viewInit=false;
+  /* ★★#995（主人 2026-08-28：「作戰版直接弄一個新的 ux21 分頁不就好了」）：
+     本場只有一兩個型號時（例如 08-29 只有 UX-21），要主人自己去挑分頁＋挑時段太囉嗦。
+     ⇒ 多一個【本場】分頁，標籤直接寫型號名；有本場就預設停在它。
+     ★實作刻意極簡：分組/排序/上色全部沿用「高順位」那一套，只是標籤不同、且預設選它
+       ⇒ 不新增任何顯示邏輯，壞掉的面積最小。 */
+  function waveModels(){
+    if(!curSlot) return [];
+    var seen={}, arr=[];
+    d.items.forEach(function(it){ if(it.ds===curSlot && !seen[it.m]){ seen[it.m]=1; arr.push({m:it.m,r:it.r}); } });
+    arr.sort(function(a,b){ return a.r-b.r; });
+    return arr.map(function(x){ return x.m; });
+  }
+  let curSlot=null;   /* ★#964 目前選的時段 */
+  let curDate=null;   /* ★#1017 目前選的日期（第一層） */
+  let curModel=null;    /* ★#1066/#1068 型號篩選：只看某一款（null＝全部） */
+  function draw(){
+    /* ★★#1142（主人 2026-09-03 13:3x 點出「人類時間未到是沒辦法按的」後順藤摸瓜）
+       resetPre() 原本**只在開頁時跑一次**。而 #972 加了【開抽時刻自動重畫】之後：
+         主人 10:50 開著板子手滑點幾張（LINE 那邊會擋、**人手點是無害的**，
+         但本機已經標成「已點過」灰色）→ 11:00 頁面自己解鎖了，
+         但 resetPre() 不會跑 ⇒ 那幾張**繼續是灰的** ⇒ 主人跳過它們 ⇒ **真的漏抽**。
+       ★以前要手動重整，重整就會清掉；**自動重整反而繞過了這道清理**。
+       ⇒ 改在 draw() 開頭呼叫：它自帶【未到開抽時刻就 return】與【每波只做一次】兩道閘，
+         重複呼叫完全安全、成本近乎零。 */
+    try{ resetPre(); }catch(e){}
+  /* ★#1141 分組鍵：萬用號（-00 結尾）且有商品名 ⇒ 依商品名拆組；其餘維持型號。
+     ★用控制圖示字元當分隔（商品名不可能出現），避免跟品名裡的符號撞到。 */
+  /* ★★#1150（主人 2026-09-03 17:1x：「把 BX-00 的蒼龍神劍V2 分了好幾類」）
+     #1141 拿【完整商品名】當分組鍵，而**每家門市打字不一樣** ⇒ 同一個商品被拆成好幾張卡。
+     ★真實資料（state.line.wave.json 掰開看，共 58 種寫法）：
+       BX-00 蒼龍神劍／BX-00 蒼龍神劍 3-60 F V2／BX-00 蒼龍神劍3-60F V2／
+       BX-00 蒼龍神劍V2／BX-00蒼龍神劍／BX-00蒼龍神劍3-60F V2／bx-00蒼龍神劍v2
+       ⇒ **7 種寫法、同一個商品**；暴風天馬也有 3 種。
+     ★差異全在【空白、大小寫、規格尾巴、型號碼】——**中文那幾個字才是穩定的**。
+     ⇒ 分組鍵只取中文（含日文假名）；抽不出中文就退回原名（fail-safe）。
+     ★失效方向：萬一合併錯了，**券一張都不會不見**（只是撠在同一張卡）；
+       不合併則是主人看到 7 張卡。前者明顯輕得多。 */
+  /* \u2605\u2605#1171\uff08\u4e3b\u4eba 2026-09-04 09:0x \u5728\u677f\u4e0a\u770b\u5230\uff1a\u300cbx00\u84bc\u9f8d\u795e\u528dv2\u4e00\u6a23\u5206\u5169\u985e\u5594\uff0c\u6709\u4e00\u500b\u662f\u65b0\u7af9\u9060\u96c4\u7368\u7acb\u7684\u300d\uff09
+     #1150 \u7684 nkey \u53ea\u7559\u4e2d\u65e5\u6587\u5b57\u5143\uff0c\u628a\u300c\u7a7a\u767d\uff0f\u5927\u5c0f\u5beb\uff0f\u898f\u683c\u5c3e\u5df4\uff0f\u578b\u865f\u78bc\u300d\u7684\u5beb\u6cd5\u5dee\u7570\u90fd\u5403\u6389\u4e86\uff0c
+     **\u4f46\u6f0f\u4e86\u3010\u50f9\u683c\u3011**\u2014\u2014\u300c\u5143\u300d\u672c\u8eab\u5c31\u662f\u4e2d\u6587\u5b57\uff0c\u6ffe\u4e0d\u6389\u3002
+     \u5be6\u4f8b\uff1aFunbox-\u65b0\u7af9\u9060\u96c4\u5e97 \u5beb\u300cBX-00 \u84bc\u9f8d\u795e\u528d 3-60F-350\u5143\u300d\u21d2 \u7d44\u9375\u8b8a\u6210\u300c\u84bc\u9f8d\u795e\u528d\u5143\u300d
+           \u21d2 \u8207\u5176\u4ed6 18 \u5f35\u7684\u300c\u84bc\u9f8d\u795e\u528d\u300d\u5206\u5bb6 \u21d2 \u4e3b\u4eba\u5728\u677f\u4e0a\u770b\u5230\u5169\u5f35\u5361\u3002
+     \u2605\u5168\u6ce2\u6383\u904e\uff1a\u542b\u300c\u5143\u300d\u7684\u54c1\u540d\u53ea\u6709\u65b0\u7af9\u9060\u96c4\u90a3 4 \u7b46\uff0c**\u5168\u90e8\u90fd\u662f\u50f9\u683c**\uff08895\u5143\uff0f350\u5143\uff0f495\u5143\uff0f595\u5143\uff09
+       \u21d2 \u5148\u79fb\u9664\u300c\u6578\u5b57+\u5143\u300d\u96f6\u8aa4\u50b7\uff1b\u5be6\u6e2c BX-00 \u7531 4 \u7d44\u4f75\u56de 3 \u7d44\u3001\u84bc\u9f8d\u795e\u528d 18\u219219 \u5f35\u3002
+     \u2605\u5931\u6548\u65b9\u5411\u540c #1150\uff1a\u842c\u4e00\u5408\u4f75\u932f\u4e86\u5238\u4e00\u5f35\u90fd\u4e0d\u6703\u4e0d\u898b\uff08\u53ea\u662f\u64e0\u5728\u540c\u4e00\u5f35\u5361\uff09\uff0c\u4e0d\u5408\u4f75\u624d\u662f\u4e3b\u4eba\u8981\u591a\u770b\u597d\u5e7e\u5f35\u5361\u3002 */
+  function nkey(nm){ return String(nm||'').replace(/\d+\s*\u5143/g,'').replace(/[^\u4e00-\u9fff\u3040-\u30ff]/g,''); }
+  function gkey(it){ if(!/-0+$/.test(it.m) || !it.nm) return it.m; var k=nkey(it.nm); return it.m + '\u241F' + (k || it.nm); }
+    /* ★★★#964（主人 2026-08-27 看板面：「你上面寫 1100 開抽，然後又有 1200 開抽，
+         開抽當下分秒必爭，哪有時間混合著看哪時段開抽的按鈕啊」）：
+       #945 當初刻意【不加分頁】，只把未開的畫暗＋標「幾點才開」——那是「防呆」，
+       但主人指出真正的需求是**分秒必爭時不要混在一起看**。防呆擋得住誤點，擋不住「要用眼睛過濾」。
+       ⇒ 多時段時加一排【時段膠囊】（不是第四個分頁，是細細的一列，手機寬度吃得下），
+         一次只看一個時段；預設自動挑「現在該打的那一個」。
+       ★單一時段時完全不顯示 ⇒ 版面與改動前一模一樣（只增不減）。 */
+    var _allSlots=[];
+    d.items.forEach(function(x){ if(x.ds&&_allSlots.indexOf(x.ds)<0) _allSlots.push(x.ds); });
+    _allSlots.sort();
+    /* ★★#1013 只看【本波】：旧波的日期（例 08/14 那張兩週前的死券）不該佔一個時段籤。
+       waveDay = 最新的開抽日；沒有 ds 的一律保留（fail-safe：寧可多顯示也不要藏券）。 */
+    /* ★★#1017：#1013 是【硬鎖本波當日】——單日可用，但【多日開抽時會把另一天整個藏起來】。
+       主人 2026-08-29：「未來仍然會碰到不同天開抽的狀況」⇒ 改成【可選日期】。
+       預設選最新那天（＝本波），行為與 #1013 相同；舊波改成【點得到、但不預設顯示】。 */
+    var _dates=[]; _allSlots.forEach(function(x){ var dd=dateKey(x); if(dd&&_dates.indexOf(dd)<0) _dates.push(dd); }); _dates.sort();
+    var multiDate=_dates.length>1;
+    if(_dates.length){ if(curDate===null||_dates.indexOf(curDate)<0) curDate=_dates[_dates.length-1]; } else { curDate=''; }
+    var waveDay=curDate;
+    const slots=_allSlots.filter(function(x){ return dateKey(x)===curDate });
+    const multi=slots.length>1;
+    function slotOpen(ds){ return !ds || Date.now()>=new Date(ds).getTime(); }
+    function slotLabel(ds){ try{var t=new Date(ds);return ('0'+t.getHours()).slice(-2)+':'+('0'+t.getMinutes()).slice(-2);}catch(e){return ''} }
+    function dateKey(ds){ try{ var t=new Date(ds); return t.getFullYear()+'-'+('0'+(t.getMonth()+1)).slice(-2)+'-'+('0'+t.getDate()).slice(-2); }catch(e){ return '' } }
+    /* ★★#1011（主人 2026-08-29 10:0x 截圖指出「超亂」）：時段膠囊原本只印 HH:mm ⇒
+       跨日的波次會同時出現兩個「11:00」（8/28 舊波 345 張 vs 8/29 本波 9 張），
+       **從膠囊上完全分不出是哪一天** ⇒ 開抽當下極可能點進昨天那堆死券。
+       ⇒ 膠囊改成「跨日時才補上 MM/DD」。**刻意不動 slotLabel 本身**——它同時被券按鈕的
+       「11:00 才開」用到，加日期會讓按鈕變寬、有撐破版面的風險（債⑥「45分比0.8寬」同族）。 */
+    function slotChipLabel(ds){ try{
+      var t=new Date(ds), hm=('0'+t.getHours()).slice(-2)+':'+('0'+t.getMinutes()).slice(-2), md=false;
+      for(var q=1;q<slots.length;q++){ if(new Date(slots[q]).toDateString()!==new Date(slots[0]).toDateString()){ md=true; break; } }
+      return md ? (('0'+(t.getMonth()+1)).slice(-2)+'/'+('0'+t.getDate()).slice(-2)+' '+hm) : hm;
+    }catch(e){ return slotLabel(ds) } }
+    /* ★★#964（主人：「現在作戰板？？怎麼沒顏色了??」）：#945 的「未開就畫暗」原本【只要多時段就整片變灰】
+       ⇒ 今天從單時段變成雙時段的那一刻，開抽前一天的板子整片灰掉、完全無法規劃。
+       ⇒ 畫暗只在【該時段開抽前 2 小時內】啟用（那才是會誤點的時候）；更早只顯示顏色，方便看順位。
+       ★點擊守門【不受影響、永遠有效】——它改成直接看 data-ds，不再依賴 pend 這個樣式 class。 */
+    function slotSoon(ds){ if(!ds) return false; var t=new Date(ds).getTime(), n=Date.now(); return n<t && (t-n)<=2*3600*1000; }
+    /* 自動挑時段：①還沒開抽 ⇒ 挑【最早的未來場】②開抽中 ⇒ 挑【最後一個已開的場】（那才是現在該打的） */
+    /* ★★#992（債⑪，2026-08-28 截圖驗收時抓到）：舊版挑的是「最後一個【已開抽】的時段」，
+       而「挑最早的未來場」那個分支要求**全部**時段都是未來 ⇒ 只要清單裡還有舊波的時段，
+       它就永遠進不去。實例：明天(08-29 11:00)只有一家，但時段清單還帶著今天的 11:00/12:00
+       ⇒ 主人明天 10:50 打開板子準備時，會停在【今天那個已經死掉的 12:00】。
+       ★時段清單是跨波累積的（同 #985/#989a/#991 那個形狀），所以「全部都是未來」幾乎不成立。
+       ⇒ 改成三段式，語意就是註解本來要講的那件事： */
+    function autoSlot(){
+      var now=Date.now(), i, t;
+      /* ① 正在進行中的場（開抽後 6 小時內）＝現在該打的那個 */
+      var pick=null;
+      for(i=0;i<slots.length;i++){ t=new Date(slots[i]).getTime(); if(t<=now && (now-t)<=6*3600*1000) pick=slots[i]; }
+      if(pick) return pick;
+      /* ② 沒有進行中的 ⇒ 挑【最早的未來場】（開抽前打開板子，要看的是下一場） */
+      for(i=0;i<slots.length;i++){ if(new Date(slots[i]).getTime()>now) return slots[i]; }
+      /* ③ 全部都過去了 ⇒ 最後一個（純查閱用） */
+      return slots[slots.length-1];
+    }
+    if(multi&&(curSlot===null||slots.indexOf(curSlot)<0)) curSlot=autoSlot();
+    if(!multi) curSlot=null;
+    /* ★#995：首次進頁時，有本場就停在本場（之後主人手動切分頁就不再覆蓋） */
+    /* ★#1037（主人 2026-08-29 20:4x 問「本場13型號是什麼？」）：
+       實查真碼＝view==='wave' 在渲染時【每一處都跟 'hi' 同待遇】（圖例/上色/過濾皆無差別），
+       waveModels() 只用來產標籤 ⇒ **型號一多，「本場 N 型號」跟「高順位」顯示的是同一份東西**。
+       它真正的價值只在 #995 講的那個情境：本場只有 1~2 款時，籤上直接寫「🔥 UX-21」＝一步到位。
+       ⇒ 只在 <=2 款時才出現、才預設選它；>=3 款一律不出（否則就是一個換了名字的重複分頁）。 */
+    if(!viewInit){ viewInit=true; }   /* ★#1037：不再預設選【本場】（已移除） */
+    if(view==='wave') view='hi';   /* ★#1037：舊狀態退回高順位（【本場】已移除） */
+    const groups={};
+    /* ★分頁：高順位（預設）／依門市／新增。主人 2026-08-15：「全部」用不到，改成依縣市劃分 */
+    const CITY=['台北','新北','桃園','新竹','其他'];
+    d.items.forEach(function(it){
+      /* ★#683（主人 2026-08-16：「高順位頁面是從高到低順位，沒有叫你只留那五款」）：
+         這頁＝【全部型號、由高順位往下排】，不是只列 tier=高順位 的那幾款。
+         排序本身就是優先序（下面 keys.sort 依 r），所以不需要再過濾、也不需要再用顏色喊一次。 */
+      if(view==='new'&&!it.n)return;
+      if(waveDay&&it.ds&&dateKey(it.ds)!==waveDay)return;   /* ★#1013 只看本波當日 */
+      if(curSlot&&it.ds&&it.ds!==curSlot)return;   /* ★#964 只看目前選的時段（分秒必爭時不要混著看） */
+      if(curModel&&it.m!==curModel)return;   /* ★#1066/#1068 只看選定的型號 */
+      /* ★★#1141（主人 2026-09-03：「有兩種 BX-00…把他分開」）
+         萬用號（BX-00／UX-00／CX-00，型號以 -00 結尾）**不是一個商品**，
+         底下是完全不同的東西（實例：蒼龍神劍3-60F V2 要買、暴風天馬3-70RA 主人明講不要）
+         ⇒ 掛在同一張卡片下面，在手機上看起來就是同一樣東西。
+         ★附帶解掉一個舊困境：#947 的註解自己寫過「混合組不可整組沉，
+           否則會把要買的一起埋掉」——**拆開之後，不要的那組可以自己沉底**，
+           要買的那組維持高順位。（nb===0 的判斷不必改，拆組後它自然就對了。）
+         ★型號膠囊（篩選列）仍然用 it.m＝短的「BX-00」，手機版不會被長名字撞爆；
+           點 BX-00 膠囊時兩組都會出現（過濾條件未動）。 */
+      const k = (view==='city') ? (it.c||'其他') : gkey(it);   /* 依門市時用縣市當分組 */
+      const g = groups[k]=groups[k]||{t:(view==='city'?'':it.t), r:(view==='city'?CITY.indexOf(it.c||'其他'):it.r), ls:[], nb:0};
+      if(!it.bl) g.nb++;   /* ★#947 nb＝這一組裡「不是主人明講不要」的券有幾張 */
+      g.ls.push(it);
+    });
+    let keys=Object.keys(groups);
+    if(view==='city'){ keys=keys.filter(function(k){return CITY.indexOf(k)>=0}).sort(function(a,b){return CITY.indexOf(a)-CITY.indexOf(b)}); }
+    else {
+      /* ★★#947（主人 2026-08-26 看板面：「BX-00 暴風天馬跑到高優先了」）：
+         #943 只修了【顏色】（黑名單券畫成藍色「最後點」），**沒修排序**——
+         排序用的 r 來自 lottery-inventory.ps1 算的 tier，而那支【就是不看 skip_title_keywords 的那支】
+         ⇒ 暴風天馬被塗成藍色，但位置還坐在第三名，整頁看起來就是「高優先」。
+         ★這就是 [[documenting-a-bug-is-not-fixing-it]] 的變形：**修了看得見的那一半，另一半原封不動。**
+         修法＝整組【全部】都是主人明講不要的 → 沉到最底下。
+         ★用 nb===0 而不是「有黑名單就沉」：萬用號 BX-00 底下可能同時有蒼龍神劍(要買)與暴風天馬(不要)，
+           整組沉下去會把要買的一起埋掉。混合組維持原順位，裡面那張黑名單的仍然是藍色。*/
+      const rk=function(k){ return groups[k].r + (groups[k].nb===0 ? 100000 : 0); };
+      keys=keys.sort(function(a,b){return rk(a)-rk(b)});
+    }
+    let h='<h1>FUNBOX 抽選 · 作戰板</h1>';
+    /* ★#1121：目前沒有進行中的波次時，把【這是上一波】寫在最上面。
+       不隐藏券：券可能還有效，隱藏等於把可以點的東西藏起來。只要讓主人一眼看出這是舊的。 */
+    if(d.staleWave){
+      h+='<div style="background:#fde68a;border:2px solid #d97706;border-radius:10px;padding:10px 12px;margin:8px 0 10px;font-size:16px;line-height:1.6;color:#7c2d12">'
+        +'⚠️ <b>這是上一波的名單</b>（最後一場 '+(d.staleWaveAt||'')+'）<br>'
+        +'下面的券大多已經過期。'+(d.draw?('新一波（'+d.draw+' 開抽）的門市貼文還沒出來'):'新一波的門市貼文還沒出來')+'，出來之後這裡會自動換成新的。'
+        +'</div>';
+    }
+    /* ★圖例只解釋「這一頁真的看得到的東西」（#682）：高順位頁整頁同質＝只要「還沒點 vs 已點過」；
+       依門市/新增頁才列型號分級（紅高順位/綠一般/藍黑名單）。 */
+    h+='<div class="lgd">'
+      +((view==='hi'||view==='wave') ? '<span class="ls" style="background:#16a34a"></span>還沒點'
+                     /* ★主人 2026-08-16：「不要加黑名單三個字，最後點就最後點就好了」
+                        ——「黑名單」是我方內部術語（型號黑白名單），對使用者只要知道「最後才點」。 */
+                     +'<span class="ls" style="background:#3b82f6"></span>最後點'
+                    : '<span class="ls" style="background:#cf3a4b"></span>高順位')
+      +((view==='hi'||view==='wave') ? '' : '<span class="ls" style="background:#16a34a"></span>一般'
+                          +'<span class="ls" style="background:#3b82f6"></span>最後點')
+      +'<span class="ls" style="background:#c8ccd2"></span>已點過'
+      /* ★#964：灰色原本有【兩種意思】（已點過／還沒開抽）而圖例只解釋了一種 ⇒ 主人問「怎麼沒顏色了」 */
+      +(multi?'<span class="ls" style="background:#e3e6ea;border:1px dashed #9aa0a6"></span>還沒開抽':'')
+      +'<span class="rz" id="rz">↺ 歸零</span>'   /* ★#945 主人：「歸零按鈕根本看不出」⇒ 給它按鈕的長相(實心/白字/膠囊/陰影/按下回饋)＋↺ 圖示 */
+      +'</div>';
+    h+='<div class="sum">更新 '+d.at+'　·　門市 '+d.stores+' 家　·　共 '+d.pools+' 個中獎池'+(d.newCount?'　·　<b style="color:#c00">本次新增 '+d.newCount+' 條</b>':'')+'</div>';
+    /* ★★時間軸進度條（#684，主人 2026-08-16：「T24 T18 之類的實在讓人很難理解，
+       能不能乾脆做成時間軸進度條不就好了？」）：
+       ─ 橫軸＝【現在 → 開抽】，填滿比例＝時間走了多少；軸上 8 個點＝掃描檢查點（過了的實心）。
+       ─ 一律用真實時刻與「還有幾小時幾分」講話，**整個板不再出現 T-24 這種黑話**。
+       ─ 在瀏覽器端即時算（不是發佈當下的快照），每分鐘自己更新一次。 */
+    h+='<div class="sc" id="tl"></div>';
+    /* ★分頁列＋區域快速鍵包在同一個 sticky 容器裡（#685）：捲到下面還能一鍵跳區域才有意義 */
+    var _wm=waveModels();
+    var _wlab=(_wm.length<=2)? _wm.join('·') : ('本場 '+_wm.length+' 型號');
+    h+='<div class="stick">';
+    /* ★#1017 第一層：日期（只在多日時出現） */
+    if(multiDate){ h+='<div class="sltw"><span class="nlab">日期</span><div class="slt dseg">'+_dates.map(function(dd){
+        var _c=d.items.filter(function(x){ return x.ds&&dateKey(x.ds)===dd }).length;
+        var _lab=dd.split('-'); _lab=_lab[1]+'/'+_lab[2];
+        return '<span class="dpk'+(dd===curDate?' on':'')+'" data-d="'+esc(dd)+'">'+_lab+'<i>'+_c+'</i></span>';
+      }).join('')+'</div></div>'; }
+    /* ★★#1148（主人 2026-09-03：「要有到期機制啦，不過就是頁面先提醒就行」）
+       現狀：舊波次的券**預設不顯示**（#1017 選最新那天）——這是對的，不要改。
+       但正因為看不到，主人**完全不知道底下累積了多少舊資料**（貼文檔／計畫檔都是跨波累積的）
+       ⇒ 這裡只做【提醒】：數出來、講出來，**不自動刪任何東西**
+       （自動清除要把「波次歸屬」做進資料檔，風險高於價值；主人也只要求提醒）。
+       ★失效方向：寫錯也只是少一行字，絕不影響點券。 */
+    try{
+      var _oldN=0, _oldDays=[];
+      d.items.forEach(function(x){
+        if(!x.ds) return;
+        var dd=dateKey(x.ds);
+        if(dd && curDate && dd<curDate){ _oldN++; if(_oldDays.indexOf(dd)<0) _oldDays.push(dd); }
+      });
+      if(_oldN>0){
+        _oldDays.sort();
+        var _dl=_oldDays.map(function(x){ var a=x.split('-'); return a[1]+'/'+a[2]; }).join('、');
+        h+='<div style="background:#eef2f7;border:1px solid #cbd5e1;border-radius:8px;padding:7px 10px;margin:6px 0 8px;font-size:14px;color:#475569">'
+          +'⏳ 名單裡還留著 <b>'+_oldN+'</b> 張【舊波次】的券（'+_dl+'），<b>預設不顯示</b>。'
+          +'<br>不影響今天點券；積太多想清掉時跟 Claude 說一聲。'
+          +'</div>';
+      }
+    }catch(e){}
+    var _tabsHtml='<div class="tabs">'
+      /* ★#1037：【本場】分頁已完全移除。實查真碼：它兩種情況都沒價值——
+         ①單一時段的日子：:616 if(!multi) curSlot=null，而 waveModels() 在 !curSlot 時回空
+           ⇒ **它根本不會出現**，而那正是 #995 當初設計它的情境（「08/29 只有 UX-21」）。
+         ②多時段的日子：view==='wave' 在渲染時【每一處都跟 'hi' 同待遇】
+           （圖例/上色/過濾皆無差別）⇒ 它只是一個換了名字的「高順位」。
+         主人 2026-08-29 20:4x 問「本場13型號是什麼？」——問得很準，因為它本來就沒意義。 */
+      +'<span class="tab'+(view==='hi'?' on':'')+'" data-v="hi">高順位</span><span class="tab'+(view==='city'?' on':'')+'" data-v="city">依門市</span></div>';   /* ★#1033：「新增」分頁已拿掉（主人 2026-08-29 19:3x：「沒點過的一定是有顏色」⇒ 它是多餘的） */
+    /* ★★#964 時段膠囊：多時段才出現。一次只看一個時段，預設自動挑「現在該打的那個」。 */
+    if(multi){
+      h+='<div class="sltw"><span class="nlab">時段</span><div class="slt">'+slots.map(function(s){
+        const cnt=d.items.filter(function(x){return x.ds===s}).length;
+        const opened=slotOpen(s);
+        return '<span class="sb'+(s===curSlot?' on':'')+(opened?' op':'')+'" data-s="'+esc(s)+'">'
+          +(opened?'▶ ':'⏳ ')+slotChipLabel(s)+'<i>'+cnt+'</i></span>';
+      }).join('')+'</div></div>';
+    }
+    h+='<div class="sltw"><span class="nlab">檢視</span>'+_tabsHtml+'</div>';   /* ★#1017 第三層：順位/門市/新增 */
+    /* ★#1066→#1068 型號篩選膠囊（主人試用 A/B 後選定此案，A 案已移除）：只看某一款。跟「時段」同款式，可橫向滑。
+       ★「全部」永遠在第一個，選了型號才會有 on 樣式，一眼看得出正在篩。 */
+    (function(){
+      var seenM={}, ml=[];
+      d.items.forEach(function(it){
+        if(waveDay&&it.ds&&dateKey(it.ds)!==waveDay)return;
+        if(curSlot&&it.ds&&it.ds!==curSlot)return;
+        if(!seenM[it.m]){ seenM[it.m]=1; ml.push({m:it.m,r:it.r}); }
+      });
+      if(ml.length<2) return;   /* 只有一款就不必篩 */
+      ml.sort(function(a,b){return a.r-b.r});
+      var cnt=function(mm){ var n=0; d.items.forEach(function(it){
+        if(waveDay&&it.ds&&dateKey(it.ds)!==waveDay)return;
+        if(curSlot&&it.ds&&it.ds!==curSlot)return;
+        if(it.m===mm) n++; }); return n; };
+      h+='<div class="sltw"><span class="nlab">型號</span><div class="slt msl">'
+        +'<span class="mpk'+(curModel?'':' on')+'" data-m="">全部</span>'
+        +ml.map(function(x){ return '<span class="mpk'+(curModel===x.m?' on':'')+'" data-m="'+esc(x.m)+'">'+esc(x.m)+'<i>'+cnt(x.m)+'</i></span>'; }).join('')
+        +'</div></div>';
+    })();
+    /* ★#1065 連抽鈕併進 sticky 列：滑動時永遠在上方，且不碰底部手勢區 */
+    h+='<div class="chnw" id="chnw" style="display:none"><div class="chn" id="chn">▶ 連抽下一張</div></div>';
+    /* ★區域快速到達（主人 #685：「做出區域快速到達的按鈕」）：只有依門市分頁有意義（那頁才依縣市分區） */
+    if(view==='city'&&keys.length>1){
+      h+='<div class="jmp">'+keys.map(function(m,ki){
+        return '<span class="jb" data-i="'+ki+'">'+m+'<i>'+groups[m].ls.length+'</i></span>';
+      }).join('')+'</div>';
+    }
+    h+='</div>';
+    /* ★★#945（主人：「如果不同時段開抽，會沒辦法去按，要多一個分類是：時段+高順位」）：
+       病灶＝板上【完全看不出哪張券幾點開】。#778 實測上一波 369 張券：354 張 11:00、15 張 12:00
+       ⇒ 11:00 照著板子一路點下去，那 15 張【還沒開】＝白點；更糟的是點完變灰「已點過」，
+         等到 12:00 反而看不到它們了（狀態把它們藏起來）。
+       ★刻意【不加第四個分頁】：手機上三個分頁已佔滿寬度。改成自適應——
+         單一時段(本波)版面完全不變；≥2 個時段時，未開的畫暗色＋標幾點開＋擋住點擊。⇒ 不只是分類，是防呆。 */
+    /* ★#964：slots／multi／slotOpen／slotLabel 已移到 draw() 開頭（要先算才能過濾），這裡不再重複宣告。 */
+    keys.forEach(function(m,ki){
+      const g=groups[m];
+      if(view==='city'){
+        /* ★★依門市＝【縣市 → 門市 → 品項】兩層。主人 2026-08-15 回饋：
+           原本只用縣市分組 ⇒ 台北那一格塞了 12 家店的 123 張券【全部混在一起】、沒有門市界線，
+           人在現場根本無法「把某一家掃乾淨」。⇒ 改成每家門市自成一區。 */
+        const byStore={};
+        g.ls.forEach(function(it){ (byStore[it.sh||it.s]=byStore[it.sh||it.s]||[]).push(it); });
+        const stores=Object.keys(byStore).sort(function(a,b){
+          /* ★#947：算「這家店最高順位是多少」時，黑名單券不該把店拉前面 */
+          const mr=function(s){ return Math.min.apply(null,byStore[s].map(function(x){return x.r+(x.bl?100000:0)})); };
+          const ra=mr(a), rb=mr(b);
+          return ra-rb;   /* 有高順位品的門市排前面 */
+        });
+        h+='<div class="cy" id="cy'+ki+'"><div class="cyh">'+m+'<span class="n">'+stores.length+' 家 / '+g.ls.length+' 張</span></div>';
+        stores.forEach(function(sn){
+          /* ★#947 同理：門市內部也讓「主人明講不要」的券沉到這家店的最後一張 */
+          const its=byStore[sn].slice().sort(function(x,y){return ((x.bl?100000:0)+x.r)-((y.bl?100000:0)+y.r)});
+          /* ★#784 門市標記：開抽時間是 AI 判讀的／貼文改過多版。不用顏色(顏色留給「按沒按」)、用小字。 */
+          const nt=(d.storeNotes&&d.storeNotes[sn])?d.storeNotes[sn]:null;
+          let tag='';
+          if(nt){
+            if(nt.ai) tag+='<span class="ai">開抽時間由 AI 讀貼文判定</span>';
+            if(nt.rev>=3) tag+='<span class="rv">貼文已改 '+nt.rev+' 版，建議自己確認一次</span>';
+            else if(nt.rev===2) tag+='<span class="rv2">貼文改過 2 版</span>';
+          }
+          h+='<div class="mg st"><div class="mh">'+sn+'<span class="n">'+its.length+' 張</span></div>'+(tag?'<div class="nt">'+tag+'</div>':'')+'<div class="ls">';
+          its.forEach(function(it){
+            /* 依門市：一張卡混著三種型號，所以要色分——紅＝高順位、藍＝黑名單、綠＝一般 */
+            const lo = (it.t==='黑名單') ? ' lo1' : (it.h ? ' hi1' : '');
+            /* ★#942 萬用號(碼結尾 -00)光看型號完全不知道是哪一款，而且【同一個碼在不同門市可能是不同商品】
+               ⇒ 按鈕補一行品名。非萬用號不顯示（型號碼已足夠、避免版面變吵）。 */
+            const wn1=(/-0+$/.test(it.m)&&it.nm)?'<i class="pn">'+esc(it.nm)+'</i>':'';
+            const bl1=it.bl?' lo1':'';   /* ★#943 主人明講不要的 → 畫成最後點 */
+            const pd1=(!slotOpen(it.ds)&&slotSoon(it.ds))?' pend':'';   /* ★#1013b 不再綁 multi：濾掉舊波後只剩一個時段也要畫暗 */   /* ★#945 這張券還沒開抽 */
+            h+='<a class="lk'+lo+(done[it.u]?' done':'')+(it.n?' new':'')+bl1+pd1+'" href="'+it.u+'" target="_blank" data-u="'+it.u+'" data-ds="'+esc(it.ds||'')+'" data-m="'+esc(it.m||'')+'">'+it.m+wn1+(pd1?'<i class="pn">'+slotLabel(it.ds)+' 才開</i>':'')+'</a>';
+          });
+          h+='</div></div>';
+        });
+        h+='</div>';
+      } else {
+        /* ★#947b（主人 2026-08-26 順著看到的第二層不一致）：
+           BX-00 暴風天馬排到最後、券也是藍色了，但標籤還寫「一般」——
+           因為 g.t 這個 tier 來自 lottery-inventory.ps1，**那支只看型號黑名單、看不到標題黑名單**
+           ⇒ 走 skip_models 的 BX-18/BX-26 標籤寫「最後點」，走 skip_title_keywords 的 BX-00 卻寫「一般」。
+           同一個根因、同一個修法：整組都是主人明講不要的 ⇒ 標籤與配色一律照「最後點」走。
+           ★仍用 nb===0：混合組（BX-00 同時有蒼龍神劍與暴風天馬）維持原標籤，不可整組貶成最後點。 */
+        const allBl = (g.nb===0);
+        const cls = allBl ? 'lo' : (g.t.indexOf('高順位')>=0?'hi':(g.t==='黑名單'?'lo':'mid'));
+        /* ★卡片標籤演進史（別憑印象改回去）：
+             「黑名單」→ 主人 2026-08-16：「不要加黑名單三個字，最後點就最後點就好了」→ 改成「最後點」
+             →「最後點」→ ★**主人 2026-08-26（#947c）：「不需要寫最後點，改 一般兩個字就好」** → 現在是「一般」。
+           ⇒ 顏色（藍）與排序（沉到最底）已經把「最後才點」講清楚了，卡片標籤不需要再喊一次。
+           ★圖例列的「🟦最後點」保留——那是【顏色說明】，拿掉的話藍色就沒人解釋了。
+           判斷邏輯照舊用 g.t / allBl，這裡只改顯示文字。 */
+        const tgTxt = (allBl || g.t==='黑名單') ? '一般' : g.t;
+        /* ★★#967（主人 2026-08-27 問「zzxx 是什麼？」時一起看出來的顯示錯誤）：
+           這個數字算的是【券數】，卻標成「家」。一般情況下每家店同型號只有 1 張 ⇒ 家＝張、看不出來；
+           但 Funbox -中和環球店 是**同一家店 9 張**（他貼純連結、沒品名 ⇒ 全部歸到 ZZ-XX）
+           ⇒ 板面寫「9 家」＝**錯的**，實際是 1 家 9 張。
+           ⇒ 兩者不同時才顯示「N 家 / M 張」；相同時維持原樣（只增不減，其他卡片一個字都不變）。
+           ★「依門市」分頁本來就是這樣寫的（縣市標題是「N 家 / M 張」）⇒ 這裡只是跟它對齊。 */
+        const _st=[]; g.ls.forEach(function(x){ var k=x.s||x.sh; if(k&&_st.indexOf(k)<0)_st.push(k); });
+        const _cnt=(_st.length===g.ls.length)?(g.ls.length+' 家'):(_st.length+' 家 / '+g.ls.length+' 張');
+        /* ★#1141：拆組後的鍵是「型號 + 分隔 + 商品名」，標題要拆回來顯示，
+           否則主人會看到一串帶控制字元的亂碼。 */
+        const _kk = String(m).split('\u241F');
+        /* ★#1150：標題不能直接用正規化後的中文（那會變成「蒼龍神劍」、看不出規格）
+           ⇒ 挑這組裡**最長的那個原名**（通常就是最完整的寫法）。 */
+        let mSub = (_kk.length>1 ? _kk[1] : '');
+        if(_kk.length>1){ g.ls.forEach(function(x){ if(x.nm && String(x.nm).length>String(mSub).length) mSub=String(x.nm); }); }
+        const mTitle = _kk[0];
+        /* ★#1150b（截圖看到的）：商品名本身就帶型號 ⇒ 標題會變成「BX-00 BX-00 蒼龍神劍…」
+           ⇒ 副標若以型號開頭（寬鬆比：不分大小寫、允許緊鄰空白）就把那段拿掉。 */
+        try{ var _rx=new RegExp('^\s*'+mTitle.replace(/[-]/g,'\-')+'\s*','i'); mSub=String(mSub).replace(_rx,'').trim(); }catch(e){}
+        h+='<div class="mg '+cls+'"><div class="mh">'+mTitle+(mSub?'<i class="pn">'+esc(mSub)+'</i>':'')+'<span class="tg">'+tgTxt+'</span><span class="n">'+_cnt+'</span></div><div class="ls">';
+        /* ★熱力色也要套在這裡（#681）：原本只有「依門市」分頁給按鈕上 hi1/lo1，
+           高順位／新增分頁一律綠 ⇒ 圖例寫「🔴＝高順位」卻整頁綠、自相矛盾。
+           這裡按【群組型別】上色（同群同型別），與依門市分頁規則一致。 */
+        g.ls.forEach(function(it){
+          /* ★高順位分頁不上色（#682）：整頁都是高順位，再用警示色＝整片同色的噪音。
+             其他分頁（新增）才需要色分。 */
+          const lo = (view==='hi'||view==='wave') ? '' : ((it.t==='黑名單') ? ' lo1' : (it.h ? ' hi1' : ''));
+          const wn2=(/-0+$/.test(it.m)&&it.nm)?'<i class="pn">'+esc(it.nm)+'</i>':'';   /* ★#942 同上 */
+          const bl2=it.bl?' lo1':'';   /* ★#943 主人明講不要的 → 畫成最後點 */
+          const pd2=(!slotOpen(it.ds)&&slotSoon(it.ds))?' pend':'';   /* ★#1013c 同 pd1：不再綁 multi */   /* ★#945 這張券還沒開抽 */
+          h+='<a class="lk'+lo+(done[it.u]?' done':'')+(it.n?' new':'')+bl2+pd2+'" href="'+it.u+'" target="_blank" data-u="'+it.u+'" data-ds="'+esc(it.ds||'')+'" data-m="'+esc(it.m||'')+'">'+(it.sh||it.s)+wn2+(pd2?'<i class="pn">'+slotLabel(it.ds)+' 才開</i>':'')+'</a>';
+        });
+        h+='</div></div>';
+      }
+    });
+    /* ★「新增」分頁自己說明基準（#688 主人問「從哪個進度開始才會生效？」）。
+       ★#712 訂正：這段註解原本寫「基準＝上一次更新」——那是 #689 之前的舊行為，**跟下面真正輸出的文字相反**
+       （真行為＝本波第一份名單之後、整波累計，見 L107-119 與 baseUrls）。註解留著舊值會誤導下一個接手的人。
+       ★這頁存在的理由（主人 2026-08-17 說明，別再提議砍它）：**開打後才比較晚上架的門市**，
+         它們新增的抽選商品就落在這一頁 ⇒ 主人開打後只要回來看這頁，就知道有哪些新的可以點。 */
+    if(view==='new'){
+      h+='<div class="sc" style="margin-bottom:10px">'
+        +'＝<b>本波第一份名單（'+(d.prevAt?d.prevAt.slice(5,16):'—')+'）之後</b>才冒出來的券。<br>'
+        +'整波<b>累計</b>，不會因為又抓了一次就被清掉——晚貼文的店、後來加的品項都會留在這裡。'
+        +'</div>';
+    }
+    if(!keys.length)h+='<div class="sum">（這個分頁沒有項目）</div>';
+    /* ★#942：前端原本【沒有任何 HTML 跳脫】。店名/型號碼不含特殊字元所以一直沒事，
+       但商品品名會（CLAUDE.md 通知格式那條早就寫過「商品名可能含 &/<」）⇒ 補一個 esc()。 */
+    app.innerHTML=h;
+    drawTl();
+    app.querySelectorAll('.tab').forEach(function(t){t.onclick=function(){view=t.dataset.v;draw()}});
+    /* ★#964 切換時段（不改分頁，只換看哪一場） */
+    app.querySelectorAll('.sb').forEach(function(b){b.onclick=function(){curSlot=b.dataset.s;curModel=null;draw()}});
+    app.querySelectorAll('.dpk').forEach(function(b){b.onclick=function(){curDate=b.dataset.d;curSlot=null;curModel=null;draw()}});
+    var rz=document.getElementById('rz'); if(rz) rz.onclick=resetAll;   /* ★#942 手動歸零 */
+    var chnb=document.getElementById('chn'); if(chnb) chnb.onclick=chainGo;   /* ★#1063 連抽 */
+    /* ★#1068 型號篩選 */
+    app.querySelectorAll('.mpk').forEach(function(b){b.onclick=function(){
+      curModel = b.dataset.m || null; draw(); window.scrollTo(0,0);
+    }});
+
+    /* 區域快速鍵：捲到該縣市，並扣掉 sticky 列的高度免得標題被蓋住 */
+    app.querySelectorAll('.jb').forEach(function(b){b.onclick=function(){
+      var el=document.getElementById('cy'+b.dataset.i); if(!el)return;
+      var off=(document.querySelector('.stick')||{offsetHeight:0}).offsetHeight+8;
+      window.scrollTo({top:el.getBoundingClientRect().top+window.pageYOffset-off,behavior:'smooth'});
+    }});
+    /* ★#942：改記【時間戳】而不是 1 —— 才分得出「開抽前手滑按的」與「開抽後真的抽了的」 */
+    app.querySelectorAll('a.lk').forEach(function(a){a.onclick=function(ev){
+      /* ★#945 還沒開抽的券：擋住——別讓它變成「已點過」而在真的開抽時消失 */
+      /* ★#964：守門改看 data-ds，不依賴 pend 樣式 ⇒ 就算沒畫暗（開抽前 2 小時以外）也照樣擋住，
+         避免提早點掉、到真的開抽時反而被『已點過』藏起來。 */
+      if(a.dataset.ds && Date.now() < new Date(a.dataset.ds).getTime()){ ev.preventDefault(); alert('這張券要到 '+slotLabel(a.dataset.ds)+' 才開抽，現在點沒有用。時間到了重新整理這一頁就會亮起來。'); return false; }
+      a.classList.add('done');done[a.dataset.u]=Date.now();localStorage.setItem(DKEY,JSON.stringify(done));updChain();   /* ★#1063 手動點也要更新連抽計數 */
+    }});
+    updChain();   /* ★#1063 每次重畫後更新連抽剩餘數 */
+
+    /* ★★★#972（主人 2026-08-27：「11 點一到重新整理後就可以點嗎？」→「好啊做」）：
+       **時段一到自動重畫**，主人不必手動下拉重整。
+       病灶：反灰與擋點都是 render 當下用 Date.now() 算的 ⇒ 11:00 到了畫面還是舊的、按鈕還是灰的，
+             主人若沒重整會以為還沒開（而那正是分秒必爭的一刻）。
+       ★兩層保險（手機瀏覽器在背景會凍結 timer，單靠 setTimeout 不可靠）：
+         ①精準：對每個「還沒到」的時段掛一個 setTimeout，時刻一到（+1.5 秒緩衝）自動 draw()
+         ②兜底：下面每 60 秒的 drawTl 會比對「開抽狀態有沒有變」，變了就 draw()
+                （分頁從背景回到前景時，被凍結的 interval 會補跑 ⇒ 一回到畫面就自動更新）
+       ★重畫前先清掉舊 timer，避免每次 draw() 都疊一層、愈積愈多。
+       ★純前端、不影響任何資料；失敗最壞＝回到「手動重整」的舊行為。 */
+    try{
+      if(window.__slotTimers){ window.__slotTimers.forEach(function(x){ clearTimeout(x); }); }
+      window.__slotTimers=[];
+      slots.forEach(function(s){
+        var ms=new Date(s).getTime()-Date.now();
+        if(ms>0 && ms<24*3600*1000){ window.__slotTimers.push(setTimeout(function(){ draw(); }, ms+1500)); }
+      });
+      /* 給 ②兜底用的狀態指紋：哪些時段已經開了 */
+      window.__slotsCache=slots;
+      window.__slotSig=slots.map(function(s){ return slotOpen(s)?'1':'0'; }).join('');
+    }catch(e){}
+  }
+  /* ★時間軸進度條（#684）：全部用「現在到開抽還有多久」講話，不用 T-24 黑話。
+     每分鐘重畫一次，所以隔天早上打開看到的是當下狀態、不是發佈當下的快照。 */
+  function fmtGap(ms){
+    if(ms<0)ms=0;
+    var mi=Math.floor(ms/60000), hh=Math.floor(mi/60), mm=mi%60;
+    if(hh>=24){var dd=Math.floor(hh/24);return dd+' 天 '+(hh%24)+' 小時';}
+    return hh>0 ? (hh+' 小時 '+mm+' 分') : (mm+' 分');
+  }
+  function drawTl(){
+    var el=document.getElementById('tl'); if(!el)return;
+    var sc=(d.scans||[]).filter(function(s){return s.iso}), now=new Date();
+    var draw1=d.drawIso?new Date(d.drawIso):null;
+    /* ★#691：沒有進行中的波次時，不可以整塊消失——那樣主人不知道「現在到底有沒有在打」。
+       改成明講：活動期間（若有）＋「目前沒有進行中的波次」。 */
+    if(!sc.length&&!draw1){
+      var t='';
+      if(d.waveEndIso){
+        var f=function(x){return x.replace('T',' ').slice(5,16).replace('-','/');};
+        t+='<div class="exp">活動 <b>'+(d.waveStart||'—')+'</b> ～ <b>'+f(d.waveEndIso)+'</b>　<b>已結束</b></div>';
+      }
+      t+='<div class="tlh"><span>😴 <b>目前沒有進行中的抽選波次</b></span></div>'
+        +'<div class="tlf"><span class="g">下面是上一波的名單（僅供參考，點了沒用）</span></div>';
+      el.innerHTML=t; el.style.display='';
+      return;
+    }
+    var doneN=sc.filter(function(s){return new Date(s.iso)<=now}).length;
+    var nx=sc.filter(function(s){return new Date(s.iso)>now})[0];
+    /* ★#687：改 D 款（等距格子）後，就不需要「把時間換算成軸上位置」的比例計算了——
+       格子本身就是刻度、下面直接寫開抽前幾小時。進度＝已跑過幾格。 */
+    var s='';
+    /* ★★券過期橫幅（#684）：清單是「上一次掃到的」，券過期它不會自己消失。
+       不講的話主人早上會對著一整頁死連結猛點。這比任何配色都重要。 */
+    /* ★#686（主人：「最上方那一段話太多廢話，其實就是活動幾月幾號到幾月幾號就好」）：
+       只講活動期間；過期就多兩個字「已結束」並轉紅。其餘解釋一律砍掉。 */
+    if(d.waveEndIso){
+      var we=new Date(d.waveEndIso), over=we<now;
+      var f=function(x){return x.replace('T',' ').slice(5,16).replace('-','/');};
+      s+='<div class="exp'+(over?'':' ok')+'">活動 <b>'+(d.waveStart||'—')+'</b> ～ <b>'+f(d.waveEndIso)+'</b>'
+        +(over?'　<b>已結束</b>':'')+'</div>';
+    }
+    /* ★簡易樣式（#685，主人：「時間軸有簡易樣式嗎？手機看這樣很累」）：壓成三行、字數砍半。
+       第一行＝倒數（大字）＋右邊小字「下次幾點·已抓幾次」；第二行＝進度條；第三行＝起訖兩個時刻。 */
+    s+='<div class="tlh"><span>';
+    if(draw1&&draw1>now) s+='⏳ 開抽倒數 <b>'+fmtGap(draw1-now)+'</b>';
+    else if(draw1) s+='🎯 <b>已開抽</b>';
+    else s+='⏳ 進行中';
+    /* ★#925：「下次抓」改用 d.nextScanAt（真正的下一次，含不佔格子的早期檢查點）。
+       原本取 sc 階梯裡的下一格 ⇒ 早期檢查點隱形，會低估名單新鮮度。 */
+    var nxTxt = d.nextScanAt ? d.nextScanAt.slice(6) : (nx?nx.at.slice(6):'');
+    s+='</span><span class="g">'+(nxTxt?('下次抓 '+nxTxt+'　'):'')+doneN+'/'+sc.length+(d.earlyN?('+'+d.earlyN+'早'):'')+'</span></div>';
+    /* D 款：8 個等距格子，下面標「開抽前幾小時」。走過的填深藍、下一個要跑的框紅邊。 */
+    s+='<div class="dbar">';
+    sc.forEach(function(x,i){
+      var isDone=new Date(x.iso)<=now, isNow=(!isDone&&i===doneN);
+      /* ★#992（債⑥）：原本一律用「小數一位的小時」⇒ T-0.75 顯示 0.8、T-0.25 顯示 0.3，
+         主人看板子時要在腦中換算。改成：不到 1 小時就直接寫分鐘。 */
+      var lead = null;
+      if (draw1) {
+        var __mins = Math.round((draw1 - new Date(x.iso)) / 60000);
+        lead = (__mins < 60) ? (__mins + '分') : (Math.round(__mins / 6) / 10);
+      }
+      s+='<div class="dc'+(isDone?' dn':'')+(isNow?' now':'')+'" title="'+x.at+'">'
+        +'<div class="db"></div><div class="dt">'+(lead!==null?lead:'')+'</div></div>';
+    });
+    s+='</div>';
+    s+='<div class="tlf"><span class="g">數字＝開抽前多久（不到 1 小時顯示分鐘）</span>'
+      +'<span>'+(d.draw?d.draw+' 開抽':'')+'</span></div>';
+    el.innerHTML=s;
+  }
+  /* ★#972 兜底：每 60 秒檢查「開抽狀態有沒有變」，變了就整頁重畫。
+     手機把分頁丟到背景時 setTimeout 會被凍結，回到前景時這個 interval 會補跑 ⇒ 一回畫面就自動亮起來。 */
+  setInterval(function(){
+    drawTl();
+    try{
+      var sig=(window.__slotsCache||[]).map(function(s){ return (Date.now()>=new Date(s).getTime())?'1':'0'; }).join('');
+      if(window.__slotSig!==undefined && sig!==window.__slotSig){ draw(); }
+    }catch(e){}
+  },60000);
+  resetPre();   /* ★#942 開頁時：若已過開抽時刻，把「開抽前手滑按的」清掉（每波只做一次）*/
+  draw();
+}
+</script></body></html>

@@ -1,0 +1,475 @@
+<!doctype html><html lang="zh-Hant"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>取貨清單</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--line:#e2e7ee;--tx:#1f2a37;--mut:#6b7684;--hi:#b91c1c;--p2:#c2410c;--gen:#15803d;--bl:#1d4ed8}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 -apple-system,"PingFang TC","Noto Sans TC",sans-serif;padding:14px 12px 60px}
+h1{font-size:21px;margin:0 0 4px}
+.sub{color:var(--mut);font-size:13px;margin-bottom:12px}
+.tabs{display:flex;gap:8px;margin:12px 0 14px;position:sticky;top:0;background:var(--bg);padding:8px 0;z-index:5}
+.tab{flex:1 1 0;min-width:0;text-align:center;padding:10px 4px;border-radius:999px;background:#e8edf4;color:#41506a;font-weight:700;font-size:14px;cursor:pointer;user-select:none}   /* ★#1041：三個分頁在 390px 下會溢出（「宅配」被切掉）——flex:1 預設 min-width:auto 不能縮小。 */
+.tab.on{background:#1e3a5f;color:#fff}
+.city{margin:20px 0 10px;font-size:20px;font-weight:800;padding:7px 12px;background:#1e3a5f;color:#fff;border-radius:10px;display:flex;justify-content:space-between;align-items:center}
+.city i{font-style:normal;font-size:13px;opacity:.85;font-weight:600}
+.store{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 11px 8px;margin-bottom:11px}
+.sname{font-size:17px;font-weight:800;margin-bottom:3px}
+.smeta{font-size:12px;color:var(--mut);margin-bottom:9px}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+th{font-size:12px;color:var(--mut);font-weight:700;padding:5px 2px;border-bottom:1px solid var(--line);text-align:center;word-break:break-all}
+td{padding:6px 2px;text-align:center;vertical-align:top;border-right:1px dashed #eef1f5}
+td:last-child{border-right:0}
+.chip{display:block;margin:3px 1px;padding:6px 2px;border-radius:8px;background:#dcfce7;color:#14532d;font-weight:800;font-size:13px;cursor:pointer;user-select:none}
+/* ★#1173 萬用號的商品名：另起一行、字小一級。到店是看型號碼對貨，品名只是辨識「哪一顆」 */
+.chip .wn{display:block;font-weight:700;font-size:11px;line-height:1.25;margin-top:1px;opacity:.85}
+.chip.got{background:#e5e7eb;color:#9ca3af;text-decoration:line-through}
+.chip.hi{background:#fee2e2;color:#7f1d1d}
+.chip.p2{background:#ffedd5;color:#7c2d12}
+.chip.bl{background:#dbeafe;color:#1e3a8a}
+.none{color:#c8cdd6;font-size:13px}
+.grp{font-size:11px;color:#8a93a3;font-weight:800;margin:9px 0 3px;letter-spacing:1px}
+/* ★門市已取完：淡綠底＋綠左條＋標題 ✅。★內容一個字都不隱藏（主人明令「內容不要不見」） */
+.store.sdone{background:#f0fdf4;border-color:#bbf7d0;box-shadow:inset 4px 0 0 #16a34a}
+.store.sdone .sname{color:#15803d}
+.store.sdone table{opacity:.72}
+.sname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* ★按鈕不跟門市名擠同一行（擠了會把表格推出畫面，2026-08-28 截圖抓到兩次） */
+.smeta{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.mk{flex:0 0 auto;font-size:13px;font-weight:900;line-height:1;padding:10px 18px;border-radius:10px;
+  background:linear-gradient(180deg,#ffffff 0%,#e9eff6 100%);color:#1e3a5f;
+  border:2px solid #1e3a5f;border-bottom-width:5px;
+  box-shadow:0 3px 0 rgba(30,58,95,.20), 0 4px 8px rgba(30,58,95,.18);
+  cursor:pointer;user-select:none;white-space:nowrap;transition:all .06s ease;text-shadow:0 1px 0 #fff}
+.mk:active{border-bottom-width:2px;transform:translateY(3px);box-shadow:0 1px 0 rgba(30,58,95,.20)}
+.store.sdone .mk{background:linear-gradient(180deg,#34d399 0%,#16a34a 100%);color:#fff;
+  border-color:#15803d;border-bottom-width:5px;text-shadow:0 1px 1px rgba(0,0,0,.25);
+  box-shadow:0 3px 0 #14532d, 0 4px 8px rgba(21,128,61,.25)}
+.store.sdone .mk:active{border-bottom-width:2px;transform:translateY(3px);box-shadow:0 1px 0 #14532d}
+.smeta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px;font-size:12px;color:var(--mut)}
+.store{overflow:hidden;max-width:100%}
+table{width:100%!important;max-width:100%!important;table-layout:fixed!important}
+th,td{overflow:hidden;word-break:break-all;max-width:0}
+.chip{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;padding:6px 1px}
+body{overflow-x:hidden}
+.store.sdone .mk{background:#16a34a;color:#fff}
+.grp.m{color:#b45309}
+table.mt th{color:#b45309}
+.mrow{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:9px;display:flex;align-items:center;gap:10px}
+.mrow .code{font-size:18px;font-weight:800;min-width:74px}
+.mrow .nm{flex:1;font-size:15px;color:#374151}
+.mrow .cnt{font-size:15px;font-weight:800;color:#1e3a5f;white-space:nowrap}
+.mrow .lab{font-size:11px;padding:2px 7px;border-radius:999px;background:#eef2f7;color:#41506a;font-weight:700;white-space:nowrap}
+.lab.t1{background:#fee2e2;color:#7f1d1d}.lab.t2{background:#ffedd5;color:#7c2d12}.lab.t4{background:#dbeafe;color:#1e3a8a}
+.mst{font-size:12px;color:var(--mut);margin:-4px 0 10px 12px}
+.tip{background:#fffbeb;border:1px solid #fde68a;color:#78350f;border-radius:10px;padding:9px 11px;font-size:13px;margin-bottom:12px}
+/* ★#1040 未結訂單卡（超商取貨／宅配）；點一下整張變灰＝已完成 */
+.ord{background:#fff;border:1px solid #e3e8ee;border-left:5px solid #1f497d;border-radius:12px;padding:10px 12px;margin:8px 0;cursor:pointer}
+.ord.got{background:#f2f4f7;border-left-color:#c3cbd5;opacity:.55}
+.ord.got .ocode{text-decoration:line-through}
+.ohd{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ocode{font-size:17px;font-weight:900;color:#16324f}
+/* ★#1215（主人 2026-09-05：「誠品跟funbox字那麼小，我根本要看到眼瞎」）：
+   11px → 15px、顏色加深、留白加大。這是在超商櫃檯要一眼看出「這單是哪家買的」，
+   跟旁邊 18px 的型號碼同一個量級才讀得到。 */
+.osrc{font-size:15px;font-weight:800;color:#1e3a5f;background:#e8edf4;border-radius:8px;padding:3px 10px}
+.oact{font-size:11px;font-weight:800;color:#8a6d3b;background:#fff5e6;border:1px solid #f0d9a8;border-radius:6px;padding:2px 7px}
+.ot{font-size:13px;color:#41506180;color:#415061;margin-top:3px}
+.ometa{font-size:11px;color:#8a97a6;margin-top:4px}
+.obig{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap}
+.ophone{font-size:26px;font-weight:900;color:#b45309;background:#fff7ea;border:2px solid #f0c98a;border-radius:10px;padding:3px 12px;letter-spacing:2px;line-height:1.25}
+.ophone b{font-size:12px;font-weight:800;opacity:.75;letter-spacing:0;vertical-align:middle}
+.oamt{font-size:26px;font-weight:900;color:#16324f;letter-spacing:.5px}
+.syncst{font-size:12px;font-weight:800;color:#6b7684;margin:2px 0 6px}
+.syncst.ok{color:#15803d}
+.syncst.bad{color:#b91c1c;background:#fff1f1;border:1px solid #f5c2c2;border-radius:8px;padding:4px 8px;font-size:13px}
+.obar{display:inline-block;font-size:17px;font-weight:900;color:#fff;background:#1d4ed8;border-radius:10px;padding:8px 14px;text-decoration:none}
+.obarx{display:inline-block;font-size:15px;font-weight:800;color:#1d4ed8;background:#eaf0ff;border:1px solid #c3d3f7;border-radius:10px;padding:6px 12px}
+.ord.got .obar{background:#9aa7b5}
+.ord.got .obarx{color:#9aa7b5;background:#f2f4f7;border-color:#dfe5ec}
+.ord.got .ophone{color:#9aa7b5;background:#f2f4f7;border-color:#dfe5ec}
+.ord.got .oamt{color:#9aa7b5}
+.empty{color:#8a97a6;font-size:14px;padding:26px 4px;text-align:center}
+.ostore{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;background:#1f497d;color:#fff;font-weight:900;font-size:15px;border-radius:10px;padding:8px 12px;margin:14px 0 6px}
+/* ★#1183：上一版把路名塞進同一行 flex ⇒ 標題長的時候被「件數」插進中間斷成三行
+   （截圖實見：「新北市長2 件安街」）⇒ 改成 flex-basis:100% 強制換行、自己一行。 */
+/* ★#1181 門市路名：跟在店名後、字小一級、半透明 —— 是輔助資訊，不搶店名的視覺重量 */
+.ostore .ord-road{flex-basis:100%;order:9;margin:4px 0 0;font-weight:700;font-size:12px;opacity:.85}
+.ostore i{font-style:normal;font-size:12px;font-weight:700;opacity:.9}
+.tabs i{font-style:normal;font-size:12px;opacity:.85;margin-left:2px}
+#err{color:#b91c1c;font-weight:700;padding:24px 0}
+/* ★#1189：中籤券的兩條安全提醒。原本只寫在收工那則 TG 裡，而主人要求 TG 改成極短版
+   ⇒ 依他指示「不可順手砍掉，要確認取貨版上有」，先搬到這裡（唯一會看中籤資料的地方）。
+   ★小字灰底：#1040 主人嫌過「取貨清單的文字廢話太多」，所以只留最關鍵的兩句、不加標題。 */
+.lotnote{font-size:12px;color:#6b7280;line-height:1.75;margin:16px 2px 6px;padding:10px 12px;background:#f8fafc;border-left:3px solid #cbd5e1;border-radius:6px}
+.lotnote b{color:#b91c1c}
+</style></head><body>
+<div id="err">解密中…（網址要含 # 後面那段金鑰）</div>
+<div id="app" style="display:none">
+  <h1>🛍 取貨清單</h1>
+  <div class="syncst" id="syncst"></div><div class="sub" id="sub"></div>
+  <!-- ★#1040：上方說明整行拿掉（主人：「取貨清單的文字廢話太多」） -->
+  <div class="tabs"><span class="tab on" data-v="store">🎯 抽選<i id="c1"></i></span><span class="tab" data-v="cvs">🏪 超商取貨<i id="c2"></i></span><span class="tab" data-v="home">📦 宅配<i id="c3"></i></span></div>
+  <div id="body"></div>
+  <div id="lotnote" class="lotnote">
+    ⚠️ 限中籤<b>本人</b>到店出示中籤畫面給店員核銷，<b>不得代領</b><br>
+    ⚠️ 別自己按「查看已領取的優惠券」——誤按會變成已使用，<b>無法補發</b>
+  </div>
+</div>
+<script>
+let DATA="",D=null,view="store";
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+/* ★#1215（主人 2026-09-05：「要就打誠品 及 Funbox 這樣」）：
+   帳本裡的 Source 是 eslite/eslite2/eslite3/eslite4、funbox/funbox2/... ＝【內部帳號代號】。
+   主人在超商櫃檯要看的是「哪一家買的」，帳號幾號對取貨完全沒用（[[owner-reads-on-phone]] 同族：
+   內部術語不該出現在給他看的出口）。⇒ 一律收斂成 誠品／Funbox。
+   ★認不出來的原樣顯示，不要吞掉（寧可醜也不要讓他看到空白）。 */
+function srcName(s){
+  var v=String(s==null?'':s).toLowerCase();
+  if(v.indexOf('eslite')===0) return '誠品';
+  if(v.indexOf('funbox')===0) return 'Funbox';
+  if(v.indexOf('momo')===0) return 'momo';
+  return String(s==null?'':s);
+}
+/* ★★#1173（主人 2026-09-04：「bx00 有分型號，取貨版也要區分」）
+   BX-00／CX-00／UX-00 是限定品的【萬用號】，同一個碼底下是完全不同的商品
+   （今天：蒼龍神劍 19／暴風天馬 7／烈焰飛鳳S 1，全都叫 BX-00）⇒ 只印型號碼，到店會拿錯。
+   ★只補【萬用號】的品名：一般型號碼本身就夠明確，全加會讓版面變吵（主人 #1111：「品名這誰看得懂？」）。
+   ★★key 仍然是型號碼 m ⇒「已取貨」共用帳本（key=<門市>|<帳號>|<型號>，#1018）完全不受影響。
+   ★★資料物件叫 D（大寫）——上一版誤寫成小寫 d ⇒ ReferenceError ⇒ 整頁渲染中斷、取貨表變空白
+     （2026-09-04 12:14 主人回報「取貨表有問題，內容空的」，已還原重推）。這裡加 typeof 防護雙保險。 */
+function _lbl(m){
+  var n='';
+  try{ if(typeof D!=='undefined'&&D&&D.wild&&D.wild[m]) n=String(D.wild[m]); }catch(e){ n=''; }
+  if(!n) return esc(m);
+  n=n.replace(/^\s*[A-Za-z]{2,3}\s*-?\s*0+\s*/,'').trim();   /* 品名常自帶「BX-00 」前綴，去掉免得重複 */
+  if(!n) return esc(m);
+  return esc(m)+'<b class="wn">'+esc(n)+'</b>';
+}
+/* ★★2026-08-28 血淚：PowerShell 的 ConvertTo-Json 會【拆包】集合——
+   空陣列 @() 變成 {}、單元素陣列變成純字串（實測 "ms":{} 與 "ms":"BX-25"）。
+   前端只要對它 .forEach 就拋 TypeError ⇒ 整個 render 中斷 ⇒ **畫面一片空白**
+   （主人回報「目前依門市是一片空白」）。台北那幾家多元素本來是好的，一炸全毀。
+   ⇒ 一律用 arr() 正規化，不要相信 JSON 裡的型別。 */
+function arr(x){
+  if(x==null) return [];
+  if(Array.isArray(x)) return x;
+  if(typeof x==='object'){ return Object.keys(x).length ? [x] : []; }
+  return [x];
+}
+function b64u(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';const r=atob(s),a=new Uint8Array(r.length);for(let i=0;i<r.length;i++)a[i]=r.charCodeAt(i);return a}
+/* ★★#1044（主人 2026-08-29 22:1x：「點掉以後，請隔72小時自動移除顯示」）：
+   原本 gotKey 綁【板子的更新日期】⇒ 隔天重新發佈就換一把鍵 ⇒ 已點的全部忘記、整批復活。
+   要做「72 小時後移除」就必須先有穩定鍵＋逐筆時間戳。
+   ⇒ 鍵固定成 bwgot.v2；值＝點下去的毫秒時戳；舊的日期鍵自動搬過來一次就刪掉。
+   ★注意語意：72 小時到了是【從畫面移除】不是【取消已取貨】——所以資料要留著，只是不渲染，
+     否則會變成「它自己跳回未取貨」，那是反效果。 */
+function gotKey(){return 'bwgot.v2'}
+var GOT_HIDE_MS=72*3600*1000;      /* 點掉後 72 小時從畫面移除 */
+var GOT_PRUNE_MS=30*24*3600*1000;  /* 30 天後才真的從儲存清掉（避免無限長大） */
+function localGot(){try{return JSON.parse(localStorage.getItem(gotKey())||'{}')}catch(e){return{}}}
+/* ★#1074 取消墓碑：D.done 是發佈快照、前端刪不掉，取消時必須有地方記「這筆已被取消」，
+   否則每次 got() 又把 D.done 併回來 ⇒ 畫面上取消不掉。推版後 D.done 若已移除該筆，墓碑自然無害。 */
+function tombKey(){return 'bwtomb.v1'}
+function localTomb(){try{return JSON.parse(localStorage.getItem(tombKey())||'{}')}catch(e){return{}}}
+function saveTomb(t){try{localStorage.setItem(tombKey(),JSON.stringify(t))}catch(e){}}
+function saveGot(l){try{localStorage.setItem(gotKey(),JSON.stringify(l))}catch(e){}}
+/* 已點過【且】超過 72 小時 ⇒ 這一筆不要再畫出來 */
+function hidden(g,k){var t=+g[k]||0;return t>1&&(Date.now()-t)>GOT_HIDE_MS}
+/* ★#1018 已取貨＝【共用帳本】∩【本機暫記】的聯集。
+   共用帳本來自 TG 勾勾表（主人或太太點都寫同一本）⇒ 兩台手機看到的一樣。
+   本機暫記只是點下去的即時回饋，下次推版就以共用帳本為準。 */
+function got(){
+  var g={};
+  try{(D&&D.done?D.done:[]).forEach(function(k){g[k]=1})}catch(e){}   /* 伺服器端已取（值 1＝無時戳、永不隱藏） */
+  try{ Object.keys(SRV).forEach(function(k){ g[k]=SRV[k]||1 }) }catch(e){}   /* ★#1057 跨裝置同步狀態 */
+  /* ★#1074 墓碑優先：本機明確取消過的，蓋掉 D.done／SRV 的殘留 */
+  try{ Object.keys(localTomb()).forEach(function(k){ if(!(SRV&&SRV[k])) delete g[k] }) }catch(e){}
+  var l=localGot(), ch=false, now=Date.now();
+  /* 舊的日期鍵搬過來一次（先收集再刪，不可邊走邊刪） */
+  try{
+    var olds=[];
+    for(var i=0;i<localStorage.length;i++){var kk=localStorage.key(i);
+      if(kk&&kk.indexOf('bwgot.')===0&&kk!==gotKey())olds.push(kk)}
+    olds.forEach(function(kk){
+      try{var o=JSON.parse(localStorage.getItem(kk)||'{}');
+        Object.keys(o).forEach(function(k){if(o[k]&&!l[k]){l[k]=now;ch=true}})}catch(e){}
+      localStorage.removeItem(kk);
+    });
+  }catch(e){}
+  /* 30 天以上才真的清掉（72 小時只是不顯示，不是取消） */
+  Object.keys(l).forEach(function(k){var t=+l[k]||0;if(t>1&&now-t>GOT_PRUNE_MS){delete l[k];ch=true}});
+  if(ch)saveGot(l);
+  Object.keys(l).forEach(function(k){g[k]=l[k]||1});
+  return g}
+/* ★★#1057 跨裝置同步（主人與太太兩支手機共用一本帳）
+   三個來源合併：D.done（發佈當下的共用帳本快照）∪ SRV（Worker，跨裝置）∪ localStorage（本機即時回饋）
+   ★fail 方向：同步失敗一律【完全 fallback 到 localStorage】，絕不因為讀不到伺服器就把已勾的清掉。
+   ★localStorage 的角色＝「尚未同步成功的暫存」：送成功後就把該筆從本機移除、以伺服器為準，
+     這樣「取消勾選」才不會被本機殘留又合併回來（那會變成取消不掉）。 */
+var SRV={};
+function syncUrl(){ try{ return (D&&D.sync&&D.sync.u&&D.sync.s)?(D.sync.u+'/'+D.sync.s+'/s'):null }catch(e){ return null } }
+/* ★★#1061：同步狀態必須【看得見】。
+   主人 2026-08-30 實測「A 手機點了 B 手機沒變灰」，而當時前端把錯誤 catch 掉不顯示
+   ⇒ 他只看到「沒反應」，我也無從判斷是推不上去還是拉不下來。
+   （根因其實是我把 key 守門寫成只允許 ASCII、中文門市名一律 400——靜默失敗讓這個 bug 藏了一整輪。）
+   ⇒ 失敗一定要在畫面上講出來，這是本專案「壞掉不可以跟正常長一樣」的鐵律。 */
+function setSync(txt, cls){
+  var el=document.getElementById('syncst'); if(!el) return;
+  el.textContent=txt; el.className='syncst '+(cls||'');
+}
+async function pullSync(){
+  var u=syncUrl(); if(!u){ setSync('（未啟用同步）',''); return; }
+  try{
+    var r=await fetch(u,{cache:'no-store'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    var m=await r.json();
+    if(m&&typeof m==='object'){
+      SRV=m;
+      var l=localGot(), ch=false;
+      Object.keys(SRV).forEach(function(k){ if(l[k]){ delete l[k]; ch=true } });   /* 伺服器已收下 ⇒ 本機暫存可清 */
+      if(ch) saveGot(l);
+      draw();
+      setSync('☁️ 已同步','ok');
+    }
+  }catch(e){
+    setSync('⚠️ 同步失敗（只存這支手機）：'+(e&&e.message?e.message:'連線問題'),'bad');
+  }
+}
+async function pushSync(k,t){
+  var u=syncUrl(); if(!u) return false;
+  setSync('☁️ 同步中…','');
+  try{
+    var r=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json; charset=utf-8'},body:JSON.stringify({k:k,t:t})});
+    if(!r.ok){
+      var why=await r.text().catch(function(){return ''});
+      setSync('⚠️ 沒同步到另一支手機（HTTP '+r.status+(why?' '+why:'')+'）','bad');
+      return false;
+    }
+    var m=await r.json();
+    if(m&&typeof m==='object'){
+      SRV=m;
+      var l=localGot(); if(k in l){ delete l[k]; saveGot(l) }
+      draw();
+      setSync('☁️ 已同步','ok');
+      return true;
+    }
+  }catch(e){
+    setSync('⚠️ 沒同步到另一支手機：'+(e&&e.message?e.message:'連線問題'),'bad');
+  }
+  return false;   /* 送不出去就留在 localStorage，下次 pullSync/操作時還在 */
+}
+function toggle(k){
+  var l=localGot();
+  /* ★★#1074（稽核 2026-08-30 抓到）：原本 on 只看 l[k]||SRV[k]，**漏了 D.done**。
+     D.done ＝發佈當下從 TG 勾勾表帶進來的共用帳本（值恆為 1）。
+     於是「只在 D.done 裡的項目」畫面是灰的、但 toggle 判定 on=false
+     ⇒ 主人想取消，實際走的是 else 分支＝**再勾一次並推上 Worker**。正好相反。
+     ⇒ on 改成看【畫面上真正的已取狀態】(got())，與眼睛看到的一致。
+     ★注意：D.done 是伺服器端快照，前端刪不掉；取消時除了清 local＋推 t=0，
+       還要記一筆 local 墓碑，否則下次 got() 又把 D.done 併回來、看起來像沒取消。 */
+  var g0 = got();
+  var on = !!g0[k];
+  if(on){
+    delete l[k]; saveGot(l);
+    var tomb = localTomb(); tomb[k] = Date.now(); saveTomb(tomb);   /* 蓋掉 D.done */
+    draw(); pushSync(k,0);
+  }
+  else {
+    var t=Date.now(); l[k]=t; saveGot(l);
+    var tb = localTomb(); if(k in tb){ delete tb[k]; saveTomb(tb); }   /* 重新勾＝撤銷墓碑 */
+    draw(); pushSync(k,t);
+  }
+}
+function tierCls(t){return t===1?'hi':(t===2?'p2':(t===4?'bl':''))}
+/* ★門市層級「已取完」：自動（該店所有型號都點過）＋手動（點標題勾勾可覆蓋）
+   manual[key] = 1 強制已取完 / 0 強制未取完 / undefined 交給自動判定 */
+function mkKey(){return 'bwstore.'+(D?D.at.slice(0,10):'x')}
+function mman(){try{return JSON.parse(localStorage.getItem(mkKey())||'{}')}catch(e){return{}}}
+function mtoggle(sname){
+  var m=mman(), cur=storeDone(findStore(sname),got());
+  m[sname]=cur?0:1;            /* 目前已完成 → 強制未完成；反之亦然 */
+  localStorage.setItem(mkKey(),JSON.stringify(m));
+  draw();
+}
+function findStore(sname){
+  var r=null;
+  arr(D.cities).forEach(function(c){arr(c.stores).forEach(function(s){if(s.s===sname)r=s})});
+  return r;
+}
+function storeDone(s,g){
+  if(!s) return false;
+  var m=mman();
+  if(m[s.s]===1) return true;
+  if(m[s.s]===0) return false;
+  var tot=0,dn=0;
+  arr(s.cols).concat(arr(s.mcols)).forEach(function(col){
+    arr(col.ms).forEach(function(x){ tot++; if(g[s.s+'|'+col.a+'|'+x]) dn++; });
+  });
+  return tot>0 && dn===tot;
+}
+function updCounts(){
+  /* ★#1042（實測抛出來的）：原本這段只在初始化跑一次
+     ⇒ 點掉一筆之後分頁上的數字不會減（點了沒反應，看起來像沒存到）。 */
+  if(!D) return;
+  var g=got(), r1=0;
+  arr(D.cities).forEach(function(ct){arr(ct.stores).forEach(function(st){
+    arr(st.cols).concat(arr(st.mcols)).forEach(function(col){
+      arr(col.ms).forEach(function(x){ if(!g[st.s+'|'+col.a+'|'+x]) r1++; });
+    });
+  })});
+  var r2=arr(D.cvs).filter(function(o){return !g['ord|'+o.id]}).length;
+  var r3=arr(D.home).filter(function(o){return !g['ord|'+o.id]}).length;
+  var e1=document.getElementById('c1'), e2=document.getElementById('c2'), e3=document.getElementById('c3');
+  if(e1)e1.textContent=r1?(' '+r1):''; if(e2)e2.textContent=r2?(' '+r2):''; if(e3)e3.textContent=r3?(' '+r3):'';
+}
+function draw(){
+  const g=got();let h='';
+  if(view==='store'){
+    arr(D.cities).forEach(function(c){
+      h+='<div class="city">'+esc(c.c)+'<i>'+c.n+' 張</i></div>';
+      /* ★已取完的門市沉到該區域最下面（主人 2026-08-28 指定：方便照路線往下跑） */
+      var _ss=arr(c.stores).slice().sort(function(a,b){
+        var da=storeDone(a,g)?1:0, db=storeDone(b,g)?1:0;
+        return da-db;
+      });
+      _ss.forEach(function(s){
+        var _d=storeDone(s,g);
+        h+='<div class="store'+(_d?' sdone':'')+'"><div class="sname">'+(_d?'✅ ':'')+esc(s.s)+'</div>'
+         +'<div class="smeta"><span>'+s.n+' 張</span>'
+         +'<span class="mk" onclick="mtoggle(\''+esc(s.s).replace(/'/g,"\'")+'\')">'+(_d?'✅ 已取件':'取件完成')+'</span></div>'
+         +'<div class="grp">🤖 機器帳</div><table><tr>';
+        arr(s.cols).forEach(function(col){h+='<th>'+esc(col.nm)+'</th>'});
+        h+='</tr><tr>';
+        arr(s.cols).forEach(function(col){
+          h+='<td>';
+          var _ms=arr(col.ms); if(!_ms.length){h+='<span class="none">—</span>'}
+          else{_ms.forEach(function(m){
+            const k=s.s+'|'+col.a+'|'+m;
+            if(hidden(g,k))return;   /* ★#1044：點掉超過 72 小時 ⇒ 不再畫出來 */
+            h+='<span class="chip'+(g[k]?' got':'')+'" onclick="toggle(\''+esc(k).replace(/'/g,"\'")+'\')">'+_lbl(m)+'</span>';
+          })}
+          h+='</td>';
+        });
+        h+='</tr></table>';
+        /* ★手動帳區（爸爸/媽媽/A57）——機器【絕不】自動點主帳號，這區的資料是人工登錄的 */
+        var mc=arr(s.mcols);
+        if(mc.length){
+          h+='<div class="grp m">✋ 手動帳</div><table class="mt"><tr>';
+          mc.forEach(function(col){h+='<th>'+esc(col.nm)+'</th>'});
+          h+='</tr><tr>';
+          mc.forEach(function(col){
+            h+='<td>';
+            var _m=arr(col.ms);
+            if(!_m.length){h+='<span class="none">—</span>'}
+            else{_m.forEach(function(m){
+              var k=s.s+'|'+col.a+'|'+m;
+              if(hidden(g,k))return;   /* ★#1044：點掉超過 72 小時 ⇒ 不再畫出來 */
+              h+='<span class="chip'+(g[k]?' got':'')+'" onclick="toggle(\''+esc(k).replace(/'/g,"\'")+'\')">'+_lbl(m)+'</span>';
+            })}
+            h+='</td>';
+          });
+          h+='</tr></table>';
+        }
+        h+='</div>';
+      });
+    });
+  }else if(view==='cvs'||view==='home'){
+    /* ★#1040：autobuy 未結訂單。點一下＝已取貨/已付款（同一套 toggle，key 用 ord|<訂單Id>）。 */
+    var _os=arr(view==='cvs'?D.cvs:D.home).filter(function(o){return !hidden(g,'ord|'+o.id)});
+    if(!_os.length){
+      h+='<div class="empty">目前沒有'+(view==='cvs'?'要去超商取貨的東西':'在等宅配的東西（含要去超商繳費的）')+'</div>';
+    }else{
+      /* ★#1045（主人：「超商裡面請使用門市來分類」）：依取貨門市分組。
+         實設定只有兩家：全家板橋運山店（帳1/3/4）、全家板橋民族店（帳2）。
+         ★真訂單目前沒有門市欄位（pending-orders 的 schema 沒收）⇒ 歸「未指定門市」。 */
+      var _grp={}, _ord=[];
+      _os.forEach(function(o){ var st=o.st||'未指定門市'; if(!_grp[st]){_grp[st]=[];_ord.push(st)} _grp[st].push(o); });
+      _ord.forEach(function(st){
+      /* ★#1181（主人：「取貨版，我需要你填上地址及電話」→「填到路名就好，詳細不需要」）：
+         門市標題後面補【路名】，主人排取貨路線時一眼看得出在哪條路。
+         ★資料來自 config.cvs.stores.json；查不到就不顯示（不會出錯、也不會顯示空白括號）。
+         ★只有路名沒有門牌與電話——各來源的門市電話互相矛盾，錯的資訊比沒有更糟。 */
+      /* ★#1182（主人 2026-09-04 22:3x 澄清：「我的意思是，只要宅配的地址，全家不用」）：
+         ・宅配區（view==='home'）⇒ 顯示【收件路名】——主人要知道貨會送到哪。
+         ・超商區（view==='cvs'）⇒ 主人明言不需要門市地址（#1181 的 rd 保留但不顯示）。
+         ★兩者都只到路名、不含門牌（主人：「填到路名就好」；也避免截圖外流完整住址）。 */
+      var _rd='';
+      try{
+        var _f=_grp[st][0];
+        if(view==='home'){ if(_f&&_f.hr) _rd='📍 送到 '+String(_f.hr); }
+      }catch(e){}
+      h+='<div class="ostore">'+(view==='home'?'📦 ':'🏪 ')+esc(st)+(_rd?'<b class="ord-road">'+esc(_rd)+'</b>':'')+'<i>'+_grp[st].length+' 件</i></div>';
+      /* ★#1111（主人指定）：門市內【依電話後3碼】排序——同一支電話的單要排在一起，
+         櫃檯一次報一個號碼就能把該領的全部領走。次鍵用下單時間，讓順序穩定可預期。 */
+      _grp[st].slice().sort(function(a,b){
+        var pa=(a.ph||'zzz'), pb=(b.ph||'zzz');
+        if(pa!==pb){ return pa<pb?-1:1 }
+        return ((a.at||'')<(b.at||''))?-1:1;
+      }).forEach(function(o){
+        var k='ord|'+o.id;
+        h+='<div class="ord'+(g[k]?' got':'')+'" data-k="'+esc(k)+'">'   /* ★#1041：【不可】寫行內 onclick——引號跳脫在 PS→HTML→JS 三層中間會被吃掉，今晚實際產出 `toggle(''+...` ⇒ 整段 JS 語法錯 ⇒ 頁面卡在「解密中」。改用 data-k ＋ 事件委派。 */
+          +'<div class="ohd"><span class="ocode">'+esc(o.nm||o.m||'—')+'</span>'
+          +'<span class="osrc">'+esc(srcName(o.src))+'</span>'
+          +'<span class="oact">'+esc(o.act||'')+'</span></div>'
+          +(o.t?('<div class="ot">'+esc(o.t)+'</div>'):'')
+          /* ★#1046（主人：「電話後3碼跟金額要夠大」）：
+             這兩個是【到櫃檯要報的】，不能埋在灰字小字裡。拉成獨立一行、大字。 */
+          +'<div class="obig">'
+          /* ★★#1059（2026-08-30 稽核抓到）：cvs_barcode 的真語意是【大型件宅配 ＋ 超商條碼繳費】，
+             貨會送到家、人只是去超商【繳費】。它卻和 cod_pickup 一起列在「超商取貨」分頁，
+             再配上 26px 大字電話尾碼（那是 #1046 為【櫃檯取貨要報的】設計的）
+             ⇒ 三個訊號裡最顯眼的兩個都指向錯的行動。
+             ⇒ 這一類【不顯示電話】，改把「繳費條碼入口」當主角；分頁名是主人 #1040 定的，不動。 */
+          +(o.ty==='cvs_barcode'
+              ? (o.url?('<a class="obar" href="'+esc(o.url)+'" target="_blank" rel="noopener">💳 開啟繳費條碼</a>'):'<span class="obarx">💳 到超商繳費（訂單頁看條碼）</span>')
+              : (o.ph?('<span class="ophone"><b>尾</b> '+esc(o.ph)+'</span>'):''))
+          +(o.amt?('<span class="oamt">NT$ '+esc(o.amt)+'</span>'):'')
+          +'</div>'
+          +'<div class="ometa">'+(o.dl?('期限 '+esc(o.dl)+'　'):'')+esc(o.at||'')+'</div></div>';
+      });
+      });
+    }
+  }else{
+    arr(D.models).forEach(function(m){
+      h+='<div class="mrow"><span class="code">'+esc(m.m)+'</span><span class="nm">'+esc(m.name||'—')+'</span>'
+       +'<span class="lab '+('t'+m.tier)+'">'+esc(m.label)+'</span><span class="cnt">'+m.n+' 張</span></div>';
+      h+='<div class="mst">'+esc(arr(m.stores).join('、'))+'</div>';
+    });
+  }
+  document.getElementById('body').innerHTML=h;
+  updCounts();   /* ★#1042：每次重畫都重算計數 */
+  /* ★#1189：那兩條提醒只跟【LINE 中籤券】有關 ⇒ 只在「🎯 抽選」分頁顯示，
+     超商取貨／宅配分頁不顯示（那些是已成立的訂單，沒有代領與誤按的問題）。 */
+  var _ln=document.getElementById('lotnote'); if(_ln){ _ln.style.display=(view==='store'?'':'none'); }
+}
+document.addEventListener('click',function(e){
+  /* ★#1041：訂單卡（超商/宅配）點一下→已完成，走同一個 toggle */
+  if(e.target.closest('.obar')){ return; }   /* ★#1059：點繳費條碼連結＝開訂單頁，不可順手把整張標成已完成 */
+  const od=e.target.closest('.ord');
+  if(od&&od.getAttribute('data-k')){ toggle(od.getAttribute('data-k')); return; }
+  const t=e.target.closest('.tab'); if(!t)return;
+  document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on')});
+  t.classList.add('on'); view=t.dataset.v; draw();
+});
+(async function(){
+  const k=location.hash.replace(/^#/,''); if(!k){return}
+  try{
+    DATA=(await (await fetch("d.txt?t="+Date.now(),{cache:"no-store"})).text()).trim();
+    const raw=b64u(k), all=b64u(DATA);
+    const key=await crypto.subtle.importKey('raw',raw,{name:'AES-CBC'},false,['decrypt']);
+    const pt=await crypto.subtle.decrypt({name:'AES-CBC',iv:all.slice(0,16)},key,all.slice(16));
+    D=JSON.parse(new TextDecoder().decode(pt));
+    document.getElementById('err').style.display='none';
+    document.getElementById('app').style.display='block';
+    document.getElementById('sub').textContent='更新 '+D.at+' ・ 共 '+D.total+' 張中獎';
+    updCounts();   /* ★#1042：計數改在 draw() 里算 */
+    draw();
+    pullSync();    /* ★#1057 解密後再拉跨裝置狀態（拉失敗不影響上面已經畫好的畫面） */
+    /* ★#1061：另一支手機點的東西，這支要看得到。原本只在載入時拉一次
+       ⇒ 太太的手機若一直開著就永遠停在舊狀態（主人實測踩到）。
+       回到前景時拉一次＋可見時每 45 秒拉一次；隱藏時不拉，省電也省請求。 */
+    document.addEventListener('visibilitychange',function(){ if(!document.hidden) pullSync(); });
+    setInterval(function(){ if(!document.hidden) pullSync(); }, 45000);
+  }catch(e){ document.getElementById('err').textContent='金鑰不正確或資料讀取失敗'; }
+})();
+</script></body></html>
