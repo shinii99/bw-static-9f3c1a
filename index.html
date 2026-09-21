@@ -9,18 +9,22 @@ h1{font-size:18px;color:#1f497d;margin:2px 0}
 .sum{font-size:12px;color:#555;margin-bottom:10px;line-height:1.6}
 .sc{font-size:12px;color:#444;background:#eef2f7;border-radius:10px;padding:9px 11px;margin-bottom:10px;line-height:1.7}
 .sc .g{color:#8a94a0}
+.nc summary{cursor:pointer;font-weight:700;color:#334}
+.ncr{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px dashed #dde2e8;font-size:12px}
+.ncr b{font-weight:700;color:#222}
 /* ★時間軸進度條（#684）：取代原本那排看不懂的 T-24 › T-18 › … */
 .tlh{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:2px 10px;font-size:13px;color:#24303c;margin-bottom:9px;line-height:1.5}
 .tlh .g{white-space:nowrap;font-size:12px}
 /* ★D 款：等距格子＋倒數時數（#687 主人選定：「走 D，但請使用倒數 24h，不要用真實時間」）
    ─ 等距＝不照真實時間比例排（原本按比例，最後 4 次檢查點會擠成一團看不出來）
-   ─ 格子下標的是【開抽前幾小時】（24/18/12/6/3.5/2.5/1.5/0.5），不是時刻 */
-.dbar{display:flex;gap:4px;margin:0 1px}
-.dc{flex:1;text-align:center;min-width:0}
+   ─ ★#1977/#1978：格子下標的是【那次抓名單的時刻 HH:mm】；一排 7 格、兩排（主人：「真的太擠了」，iPhone 字型較寬，14 格一排會黏在一起） */
+.dbar{display:flex;flex-wrap:wrap;gap:10px 4px;margin:0 1px}
+.dc{flex:0 0 calc((100% - 24px) / 7);text-align:center;min-width:0}
 .db{height:14px;border-radius:4px;background:#dde3ea}
 .dc.dn .db{background:#1f497d}
 .dc.now .db{background:#fff;border:2px solid #e11d48;box-sizing:border-box}
-.dt{font-size:10px;color:#9aa4b0;margin-top:4px;letter-spacing:-.3px}
+.dt{font-size:12px;color:#9aa4b0;margin-top:4px;white-space:nowrap}
+.dt .dd{display:block;font-size:10px;line-height:1.3;color:#9aa4b0;font-weight:400}
 .dc.dn .dt{color:#1f497d;font-weight:700}
 .dc.now .dt{color:#e11d48;font-weight:700}
 .tlf{display:flex;justify-content:space-between;font-size:11px;color:#6b7683}
@@ -545,7 +549,9 @@ function render(d){
        所以 CityOf 新增任何回傳值，這裡【必須】同步加，順序要與 lottery-pickup.ps1 的  一致。
        本次補「苗栗」「宜蘭」：CityOf 原本就沒有那兩條（宜蘭新月、苗栗尚順一直落在「其他」），
        #1191 補上規則的同時如果沒改這裡，就會把它們從板上抹掉。 */
-    const CITY=['台北','新北','桃園','新竹','苗栗','宜蘭','其他'];
+    /* ★#1632：加 台中／彰化。**這是白名單，漏列＝那一區的門市在板上整個消失、主人點不到。**
+       順序必須與 lottery-pickup.ps1 的  逐字一致。 */
+    const CITY=['台北','新北','桃園','新竹','苗栗','台中','彰化','宜蘭','其他'];
     d.items.forEach(function(it){
       /* ★#683（主人 2026-08-16：「高順位頁面是從高到低順位，沒有叫你只留那五款」）：
          這頁＝【全部型號、由高順位往下排】，不是只列 tier=高順位 的那幾款。
@@ -607,6 +613,13 @@ function render(d){
       +'<span class="rz" id="rz">↺ 歸零</span>'   /* ★#945 主人：「歸零按鈕根本看不出」⇒ 給它按鈕的長相(實心/白字/膠囊/陰影/按下回饋)＋↺ 圖示 */
       +'</div>';
     h+='<div class="sum">更新 '+d.at+'　·　門市 '+d.stores+' 家　·　共 '+d.pools+' 個中獎池'+(d.newCount?'　·　<b style="color:#c00">本次新增 '+d.newCount+' 條</b>':'')+'</div>';
+    /* ★#1731 本波沒有券的門市（對手站有這塊、我方一直沒有）。
+       ★用字只講「我方沒掃到」不講「未販售」——我方能證明的只有前者。 */
+    if(d.noCoupon && d.noCoupon.length){
+      h+='<details class="sc nc"><summary>本波沒有券的門市 '+d.noCoupon.length+' 家（點開看原因）</summary>'
+        +d.noCoupon.map(function(x){return '<div class="ncr"><b>'+x.s+'</b><span class="g">'+x.w+'</span></div>';}).join('')
+        +'<div class="g" style="margin-top:7px">「沒掃到貼文」＝我方這一波沒看到，<b>不等於門市沒賣</b>；台中門市依設定不掃。</div></details>';
+    }
     /* ★★時間軸進度條（#684，主人 2026-08-16：「T24 T18 之類的實在讓人很難理解，
        能不能乾脆做成時間軸進度條不就好了？」）：
        ─ 橫軸＝【現在 → 開抽】，填滿比例＝時間走了多少；軸上 8 個點＝掃描檢查點（過了的實心）。
@@ -949,16 +962,15 @@ function render(d){
       var isDone=new Date(x.iso)<=now, isNow=(!isDone&&i===doneN);
       /* ★#992（債⑥）：原本一律用「小數一位的小時」⇒ T-0.75 顯示 0.8、T-0.25 顯示 0.3，
          主人看板子時要在腦中換算。改成：不到 1 小時就直接寫分鐘。 */
-      var lead = null;
-      if (draw1) {
-        var __mins = Math.round((draw1 - new Date(x.iso)) / 60000);
-        lead = (__mins < 60) ? (__mins + '分') : (Math.round(__mins / 6) / 10);
-      }
+      /* ★#1977（主人 2026-10-07：「時間不應該有小數點」，選 A）：改寫【幾點幾分】，跟「下次抓 19:00」同一種寫法；
+         換日的第一格上面加小字日期（10/08）。x.at＝'MM/dd HH:mm'。 */
+      var hm = x.at ? x.at.slice(6) : '', dd = x.at ? x.at.slice(0,5) : '';
+      var newDay = (i===0) || !(sc[i-1] && sc[i-1].at && sc[i-1].at.slice(0,5)===dd);
       s+='<div class="dc'+(isDone?' dn':'')+(isNow?' now':'')+'" title="'+x.at+'">'
-        +'<div class="db"></div><div class="dt">'+(lead!==null?lead:'')+'</div></div>';
+        +'<div class="db"></div><div class="dt">'+(newDay?'<span class="dd">'+dd+'</span>':'<span class="dd">&nbsp;</span>')+hm+'</div></div>';
     });
     s+='</div>';
-    s+='<div class="tlf"><span class="g">數字＝開抽前多久（不到 1 小時顯示分鐘）</span>'
+    s+='<div class="tlf"><span class="g">每格＝那一次抓名單的時刻</span>'
       +'<span>'+(d.draw?d.draw+' 開抽':'')+'</span></div>';
     el.innerHTML=s;
   }
