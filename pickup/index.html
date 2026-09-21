@@ -55,12 +55,14 @@ body{overflow-x:hidden}
 .grp.m{color:#b45309}
 table.mt th{color:#b45309}
 .mrow{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:9px;display:flex;align-items:center;gap:10px}
+.stabs{display:flex;gap:6px;margin:0 0 12px}.stab{flex:1 1 0;text-align:center;padding:7px 4px;border-radius:999px;background:#eef2f7;color:#41506a;font-weight:700;font-size:13px;cursor:pointer;user-select:none}.stab.on{background:#1e3a6e;color:#fff}.stsum{font-size:13px;color:#5b6b82;margin:0 0 10px}.rk{min-width:22px;text-align:center;font-weight:800;color:#8a97ab}   /* ★#1931 */
 .mrow .code{font-size:18px;font-weight:800;min-width:74px}
 .mrow .nm{flex:1;font-size:15px;color:#374151}
 .mrow .cnt{font-size:15px;font-weight:800;color:#1e3a5f;white-space:nowrap}
 .mrow .lab{font-size:11px;padding:2px 7px;border-radius:999px;background:#eef2f7;color:#41506a;font-weight:700;white-space:nowrap}
 .lab.t1{background:#fee2e2;color:#7f1d1d}.lab.t2{background:#ffedd5;color:#7c2d12}.lab.t4{background:#dbeafe;color:#1e3a8a}
 .mst{font-size:12px;color:var(--mut);margin:-4px 0 10px 12px}
+.msl{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:0 0 5px}.msc{font-size:11px;font-weight:800;color:#1e3a6e;min-width:30px}.msp{font-size:12.5px;color:#374151;background:#fff;border:1px solid var(--line);border-radius:7px;padding:2px 7px;white-space:nowrap}   /* ★#1932 品項統計門市：分區＋每家一框 */
 .tip{background:#fffbeb;border:1px solid #fde68a;color:#78350f;border-radius:10px;padding:9px 11px;font-size:13px;margin-bottom:12px}
 /* ★#1040 未結訂單卡（超商取貨／宅配）；點一下整張變灰＝已完成 */
 .ord{background:#fff;border:1px solid #e3e8ee;border-left:5px solid #1f497d;border-radius:12px;padding:10px 12px;margin:8px 0;cursor:pointer}
@@ -90,6 +92,17 @@ table.mt th{color:#b45309}
 .odeliv{display:inline-block;font-size:16px;font-weight:900;color:#065f46;background:#e7f8ef;border:2px solid #86e0b0;border-radius:10px;padding:7px 13px}
 .ord.unpaid{opacity:1}
 .ord.got .obar{background:#9aa7b5}
+/* ★#1611 ATM 虛擬帳號：這是【要打進轉帳畫面】的東西 ⇒ 字要大、要能一按全選複製。
+   同 #1046 的道理（電話後3碼/金額要夠大），不可埋在灰字小字裡。
+   user-select:all ⇒ 手機長按一下就整串選起來，不會只選到半截（虛擬帳號選錯一碼就轉錯）。 */
+/* ★#1614 ATM 兩列版：銀行/帳號分開，各自一顆複製鈕（貼進網銀不必再刪空格）。
+   b 仍保留 user-select:all ⇒ 沒有剪貼簿權限時長按也能只選到那一段。 */
+.obar.oatm{background:#0f766e;display:block;padding:10px 12px;text-align:left;letter-spacing:.3px}
+.oatmrow{display:flex;align-items:center;gap:8px;margin:4px 0}
+.oatmrow i{font-style:normal;font-size:13px;opacity:.85;min-width:34px}
+.oatmrow b{font-size:20px;user-select:all;-webkit-user-select:all;flex:1}
+.ocp{font-size:14px;font-weight:900;color:#0f766e;background:#fff;border:0;border-radius:8px;padding:7px 13px;cursor:pointer;white-space:nowrap}
+.ocp.okd{background:#bbf7d0;color:#14532d}
 .ord.got .obarx{color:#9aa7b5;background:#f2f4f7;border-color:#dfe5ec}
 .ord.got .ophone{color:#9aa7b5;background:#f2f4f7;border-color:#dfe5ec}
 .ord.got .oamt{color:#9aa7b5}
@@ -121,7 +134,7 @@ table.mt th{color:#b45309}
   </div>
 </div>
 <script>
-let DATA="",D=null,view="store";
+let DATA="",D=null,view="store",sview="list"; if(/[?&]s=stat\b/.test(location.search))sview="stat";   /* ★#1931 網址帶 ?s=stat 直接開品項統計（截圖驗收用） */   /* ★#1931 抽選頁小分頁：list=依門市、stat=品項統計 */
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 /* ★#1215（主人 2026-09-05：「要就打誠品 及 Funbox 這樣」）：
    帳本裡的 Source 是 eslite/eslite2/eslite3/eslite4、funbox/funbox2/... ＝【內部帳號代號】。
@@ -282,6 +295,7 @@ async function pushSync(k,t){
   }
   return false;   /* 送不出去就留在 localStorage，下次 pullSync/操作時還在 */
 }
+function setS(v){ sview=v; draw(); }   /* ★#1931 抽選頁小分頁切換（只換畫面） */
 function toggle(k){
   var l=localGot();
   /* ★★#1074（稽核 2026-08-30 抓到）：原本 on 只看 l[k]||SRV[k]，**漏了 D.done**。
@@ -434,6 +448,29 @@ function updCounts(){
 function draw(){
   const g=got();let h='';
   if(view==='store'){
+    /* ★#1931 小分頁：依門市／品項統計（只改畫面，不碰已取紀錄） */
+    h+='<div class="stabs"><span class="stab'+(sview==='list'?' on':'')+'" onclick="setS(\'list\')">依門市</span><span class="stab'+(sview==='stat'?' on':'')+'" onclick="setS(\'stat\')">品項統計</span></div>';
+    if(sview==='stat'){
+      var _st=arr(D.stat), _tot=0; _st.forEach(function(x){_tot+=x.n});
+      /* ★#1932 門市→區域對照（取自依門市頁同一份 D.cities）＋短名 */
+      var _sc={}, _co=[]; arr(D.cities).forEach(function(c){_co.push(c.c);arr(c.stores).forEach(function(s){_sc[s.s]=c.c})});
+      var _ssn=function(s){var t=String(s).replace(/^\s*fun\s*box\s*(toys?)?\s*[-－–]?\s*/i,'').replace(/店\s*$/,'').trim();return t||String(s)};
+      h+='<div class="stsum">共 '+_tot+' 張・'+_st.length+' 個品項（由多到少）</div>';
+      _st.forEach(function(x,i){
+        h+='<div class="mrow"><span class="rk">'+(i+1)+'</span><span class="code">'+esc(x.m)+'</span><span class="nm">'+esc(x.name||'—')+'</span><span class="cnt">'+x.n+' 張・'+x.k+' 家</span></div>';
+        /* ★#1932（主人 2026-10-04「那個門市，我這樣很難區分」）：門市原本是一長串「、」接起來的灰字，
+           每家都頂著 Funbox／FunBox／Fun box／Funbox Toys 前綴 ⇒ 分不出一家在哪結束。
+           改成：依區域分行（區域順序同依門市頁）＋每家一顆小框＋去掉 Funbox 前綴與尾巴「店」。
+           ★只改顯示文字，資料裡的門市名（勾選 key）不動。 */
+        var _byC={}; arr(x.stores).forEach(function(s){var c=_sc[s]||'其他';(_byC[c]=_byC[c]||[]).push(s)});
+        h+='<div class="mst">';
+        _co.concat(Object.keys(_byC).filter(function(c){return _co.indexOf(c)<0})).forEach(function(c){
+          if(!_byC[c])return;
+          h+='<div class="msl"><span class="msc">'+esc(c)+'</span>'+_byC[c].map(function(s){return '<span class="msp">'+esc(_ssn(s))+'</span>'}).join('')+'</div>';
+        });
+        h+='</div>';
+      });
+    } else {
     arr(D.cities).forEach(function(c){
       h+='<div class="city">'+esc(c.c)+'<i>'+c.n+' 張</i></div>';
       /* ★已取完的門市沉到該區域最下面（主人 2026-08-28 指定：方便照路線往下跑） */
@@ -490,6 +527,7 @@ function draw(){
         h+='</div>';
       });
     });
+    }   /* ★#1931 依門市 else 結束 */
   }else if(view==='cvs'||view==='home'){
     /* ★#1040：autobuy 未結訂單。點一下＝已取貨/已付款（同一套 toggle，key 用 ord|<訂單Id>）。 */
     var _os=arr(view==='cvs'?D.cvs:D.home).filter(function(o){return !hidden(g,'ord|'+o.id)});
@@ -573,8 +611,23 @@ function draw(){
           +(twoStage
               ? (paid
                   ? '<span class="odeliv">🚚 已付款・待宅配到府（收到貨再點整張卡）</span>'
-                  : (o.url?('<a class="obar" href="'+esc(o.url)+'" target="_blank" rel="noopener">💳 開啟繳費條碼</a>'):'<span class="obarx">💳 到超商繳費（訂單頁看條碼）</span>')
-                    +'<button class="opaid" data-p="'+esc(kp)+'">✅ 我已付款</button>')
+                  /* ★#1606（主人 2026-09-22：「誠品宅配應該是轉帳」）：
+                     cvs_barcode=FUNBOX 大型件宅配＋超商條碼；atm_home=誠品宅配＋ATM；atm_transfer=momo ATM。
+                     原本三種型別共用同一句「到超商繳費」⇒ ATM 單會印出錯的動作指示。
+                     而誠品的 OrderUrl 【一律是空】⇒ 永遠走 fallback ⇒ 錯的那句每一張都會出現（實測 5 張全中）。 */
+                  : ((o.ty==='cvs_barcode')
+                      ? (o.url?('<a class="obar" href="'+esc(o.url)+'" target="_blank" rel="noopener">💳 開啟繳費條碼</a>'):'<span class="obarx">💳 到超商繳費（訂單頁看條碼）</span>')
+                      /* ★#1611：抓得到銀行+虛擬帳號就【直接印在卡片上】，主人不必切回 App。
+                         每張單的虛擬帳號都不一樣(per-order)，所以一定要跟著卡片走、不能只印一次。 */
+                      /* ★#1614（主人 2026-09-22：「把匯款帳號跟銀行代碼分開，讓我能複製直接到網路銀行貼上」）
+                         原本印成「013 5508092317428537」一整串 ⇒ 長按全選會**連銀行代碼和空格一起選到**，
+                         貼進網銀還要手動刪 ⇒ 等於沒省到。改成兩列、各一顆複製鈕，複製到的是【純數字】。 */
+                      : (o.pa?('<span class="obar oatm">'
+                          +'<span class="oatmrow"><i>銀行</i><b>'+esc(o.pb||'')+'</b><button class="ocp" data-cp="'+esc(o.pb||'')+'">複製</button></span>'
+                          +'<span class="oatmrow"><i>帳號</i><b class="oacc">'+esc(o.pa)+'</b><button class="ocp" data-cp="'+esc(o.pa)+'">複製</button></span>'
+                          +'</span>')
+                          : (o.url?('<a class="obar" href="'+esc(o.url)+'" target="_blank" rel="noopener">🏧 開啟轉帳資訊</a>'):'<span class="obarx">🏧 ATM 轉帳（訂單頁看銀行帳號）</span>')))
+                    +'<button class="opaid" data-p="'+esc(kp)+'">✅ '+((o.ty==='cvs_barcode')?'我已付款':'我已轉帳')+'</button>')
               : (o.ph?('<span class="ophone"><b>尾</b> '+esc(o.ph)+'</span>'):''))
           +(o.amt?('<span class="oamt">NT$ '+esc(o.amt)+'</span>'):'')
           +'</div>'
@@ -595,7 +648,28 @@ function draw(){
      超商取貨／宅配分頁不顯示（那些是已成立的訂單，沒有代領與誤按的問題）。 */
   var _ln=document.getElementById('lotnote'); if(_ln){ _ln.style.display=(view==='store'?'':'none'); }
 }
+/* ★#1614 複製後備：navigator.clipboard 在非 HTTPS／舊瀏覽器不存在 ⇒ 退回 execCommand。
+   ★兩條路都失敗才 alert 出值，讓主人至少還能手動選——絕不可安靜失敗（按了沒反應最難查）。 */
+function _cpFallback(v,cb){
+  try{var ta=document.createElement('textarea');ta.value=v;ta.setAttribute('readonly','');
+      ta.style.position='fixed';ta.style.top='-1000px';document.body.appendChild(ta);
+      ta.select();ta.setSelectionRange(0,v.length);document.execCommand('copy');
+      document.body.removeChild(ta);cb();}
+  catch(err){alert('複製失敗，請長按選取：'+v);}
+}
 document.addEventListener('click',function(e){
+  /* ★#1614：複製鈕必須排在 .obar 的提早 return【之前】，否則整段被吃掉＝按了沒反應。 */
+  var _cp=e.target.closest('.ocp');
+  if(_cp){
+    e.preventDefault(); e.stopPropagation();
+    var _v=_cp.getAttribute('data-cp')||'';
+    var _ok=function(){ var o=_cp.textContent; _cp.textContent='✓ 已複製'; _cp.classList.add('okd');
+                        setTimeout(function(){_cp.textContent=o;_cp.classList.remove('okd');},1400); };
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(_v).then(_ok,function(){_cpFallback(_v,_ok);});
+    }else{ _cpFallback(_v,_ok); }
+    return;
+  }
   /* ★#1041：訂單卡（超商/宅配）點一下→已完成，走同一個 toggle */
   if(e.target.closest('.obar')){ return; }   /* ★#1059：點繳費條碼連結＝開訂單頁，不可順手把整張標成已完成 */
   /* ★#1288：「我已付款」＝只推進到【待宅配】階段，不結案。必須排在 .ord 之前攔截。 */
