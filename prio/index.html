@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="zh-Hant"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>購買順位</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:#12151a;color:#e8ecf2;font:15px/1.5 -apple-system,"Segoe UI","Noto Sans TC",sans-serif}
+header{position:sticky;top:0;z-index:9;background:#171b22;border-bottom:1px solid #262c36;padding:10px 12px}
+h1{margin:0;font-size:16px;font-weight:700}
+.sub{color:#8b94a3;font-size:12px;margin-top:2px}
+.wrap{padding:10px 12px 160px}
+.sec{margin:18px 0 8px;font-size:14px;font-weight:700}
+.sec .d{font-weight:400;color:#6f7a8b;font-size:11px;margin-top:3px}
+.cnt{color:#9aa4b4;font-weight:400;font-size:12px;margin-left:5px}
+ul{list-style:none;margin:0;padding:0}
+li{display:flex;align-items:flex-start;gap:9px;background:#1b2029;border:1px solid #262c36;border-radius:10px;padding:9px 10px;margin:6px 0}
+.idx{min-width:24px;text-align:right;color:#6f7a8b;font-size:13px;padding-top:2px}
+.mid{flex:1;min-width:0}
+.mdl{font-weight:700;letter-spacing:.3px;font-size:14px}
+.nm{color:#b8c2d0;font-size:13px;margin-top:1px;word-break:break-word}
+.nm.none{color:#5d6675;font-style:italic}
+.wild{color:#e2c07e;font-size:12px;margin-top:3px;line-height:1.7}
+.wild b{color:#f0d9a8;font-weight:600;font-size:11px;background:#3a2f1f;border-radius:99px;padding:1px 7px;margin-right:4px}
+.sp{font-size:11px;padding:2px 7px;border-radius:99px;white-space:nowrap;margin-top:2px}
+.sp.cod{background:#1f2a3a;color:#8ab4e8}
+.sp.cvs{background:#2a1f3a;color:#c39ae8}
+.grip{width:36px;height:36px;margin:-6px -4px 0 0;display:flex;align-items:center;justify-content:center;color:#6f7a8b;touch-action:none;cursor:grab;flex:0 0 auto}
+.grip svg{pointer-events:none}
+li.drag{opacity:.3}
+li.ghost{position:fixed;z-index:99;pointer-events:none;box-shadow:0 10px 28px #000b;border-color:#3d7dff;opacity:.95;margin:0}
+li.moved{border-color:#2f6b47}
+li.moved .mdl{color:#7ee2a8}
+#bar{position:fixed;left:0;right:0;bottom:0;background:#171b22;border-top:1px solid #262c36;padding:10px 12px;z-index:20}
+#sum{font-size:12px;color:#9aa4b4;max-height:92px;overflow:auto;white-space:pre-wrap;margin-bottom:8px}
+#sum.has{color:#7ee2a8}
+button{border:0;border-radius:9px;padding:10px 14px;font-size:14px;font-weight:700;font-family:inherit}
+#reset{background:#262c36;color:#c8d0dc;margin-right:8px}
+#gen{background:#3d7dff;color:#fff}
+#cmdbox{width:100%;background:#0e1116;color:#7ee2a8;border:1px solid #262c36;border-radius:8px;padding:8px;font:12px/1.45 ui-monospace,Menlo,monospace;height:70px;display:none;margin-top:8px;resize:none}
+.note{background:#1a2333;border:1px solid #2a3a52;color:#a8c4e8;border-radius:8px;padding:9px 11px;font-size:12px;margin:10px 0;line-height:1.6}
+.err{padding:40px 16px;text-align:center;color:#e88}
+</style></head><body>
+<header><h1>購買順位</h1><div class="sub" id="meta">載入中…</div></header>
+<div class="wrap" id="app"><div class="err" id="boot">解密中…</div></div>
+<div id="bar" style="display:none">
+  <div id="sum">尚未變更</div>
+  <button id="reset">還原</button><button id="gen">複製給 Claude</button>
+  <textarea id="cmdbox" readonly></textarea>
+</div>
+<script>
+var D=null, ORD={}, ORIG={};
+function b64u(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';var r=atob(s),a=new Uint8Array(r.length);for(var i=0;i<r.length;i++)a[i]=r.charCodeAt(i);return a}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+async function boot(){
+  var k=location.hash.slice(1);
+  if(!k){document.getElementById('boot').textContent='缺少金鑰（網址要帶 # 後面那串）';return}
+  try{
+    var txt=(await (await fetch('d.txt?t='+Date.now(),{cache:'no-store'})).text()).trim();
+    var blob=b64u(txt), iv=blob.slice(0,16), ct=blob.slice(16);
+    var key=await crypto.subtle.importKey('raw',b64u(k),{name:'AES-CBC'},false,['decrypt']);
+    var pt=await crypto.subtle.decrypt({name:'AES-CBC',iv:iv},key,ct);
+    D=JSON.parse(new TextDecoder().decode(pt));
+  }catch(e){document.getElementById('boot').textContent='解不開（金鑰不對或資料損壞）';return}
+  render();
+}
+function render(){
+  var tot=0; D.lists.forEach(function(L){tot+=L.items.length});
+  document.getElementById('meta').textContent=D.at+'　'+tot+' 個型號';
+  var h='<div class="note">用右邊的把手拖動排序，拖完按「<b>複製給 Claude</b>」，把內容貼到對話裡就好。<br>'
+       +'🛒＝全家貨到付款　🚚＝宅配＋超商條碼（大型件）</div>';
+  D.lists.forEach(function(L,li){
+    h+='<div class="sec">'+esc(L.name)+'<span class="cnt">'+L.items.length+' 項</span>'
+      +'<div class="d">'+esc(L.desc)+'</div></div><ul data-k="'+li+'" class="sortable">';
+    L.items.forEach(function(it,i){h+=row(it,i)});
+    h+='</ul>';
+    ORD[li]=L.items.map(function(x){return x.m});
+    ORIG[li]=ORD[li].slice();
+  });
+  document.getElementById('app').innerHTML=h;
+  document.getElementById('bar').style.display='';
+  document.querySelectorAll('ul.sortable .grip').forEach(function(g){
+    g.addEventListener('pointerdown',function(e){start(e,g.closest('ul'),g.parentNode)});
+  });
+}
+function row(it,i){
+  var body='<div class="mdl">'+esc(it.m)+'</div>';
+  if(it.w && it.w.length){
+    body+='<div class="wild"><b>萬用號</b>底下這幾款：</div>';
+    it.w.forEach(function(x){ body+='<div class="wild">· '+esc(x)+'</div>' });
+  } else if(it.n){
+    body+='<div class="nm">'+esc(it.n)+'</div>';
+  } else {
+    body+='<div class="nm none">（還沒抓到品名）</div>';
+  }
+  var sp=(it.ship==='cvs')?'<span class="sp cvs">🚚 宅配</span>':'<span class="sp cod">🛒 全家</span>';
+  return '<li data-v="'+esc(it.m)+'"><span class="idx">'+(i+1)+'</span>'
+    +'<span class="mid">'+body+'</span>'+sp
+    +'<span class="grip"><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><circle cx="6" cy="4" r="1.5"/><circle cx="12" cy="4" r="1.5"/><circle cx="6" cy="9" r="1.5"/><circle cx="12" cy="9" r="1.5"/><circle cx="6" cy="14" r="1.5"/><circle cx="12" cy="14" r="1.5"/></svg></span></li>';
+}
+function start(e,ul,li){
+  e.preventDefault();
+  var gh=li.cloneNode(true); gh.className='ghost';
+  var r=li.getBoundingClientRect();
+  gh.style.width=r.width+'px'; gh.style.left=r.left+'px'; gh.style.top=r.top+'px';
+  document.body.appendChild(gh); li.classList.add('drag');
+  var oy=e.clientY-r.top;
+  function mv(ev){
+    gh.style.top=(ev.clientY-oy)+'px';
+    var others=[].slice.call(ul.children).filter(function(x){return x!==li}), done=false;
+    for(var i=0;i<others.length;i++){
+      var b=others[i].getBoundingClientRect();
+      if(ev.clientY < b.top+b.height/2){ul.insertBefore(li,others[i]);done=true;break}
+    }
+    if(!done) ul.appendChild(li);
+  }
+  function up(){
+    document.removeEventListener('pointermove',mv);
+    document.removeEventListener('pointerup',up);
+    gh.remove(); li.classList.remove('drag'); commit(ul);
+  }
+  document.addEventListener('pointermove',mv);
+  document.addEventListener('pointerup',up);
+}
+function commit(ul){
+  var k=ul.dataset.k;
+  ORD[k]=[].slice.call(ul.children).map(function(x){return x.dataset.v});
+  [].slice.call(ul.children).forEach(function(x,i){
+    x.querySelector('.idx').textContent=(i+1);
+    x.classList.toggle('moved', ORIG[k][i]!==x.dataset.v);
+  });
+  summary();
+}
+function nameOf(k,m){
+  var it=D.lists[k].items.filter(function(x){return x.m===m})[0];
+  if(!it) return m;
+  if(it.w && it.w.length) return m;
+  return it.n? (m+' '+it.n) : m;
+}
+function summary(){
+  var out=[];
+  Object.keys(ORD).forEach(function(k){
+    var a=ORIG[k], b=ORD[k], nm=D.lists[k].name;
+    for(var i=0;i<b.length;i++){
+      var o=a.indexOf(b[i]);
+      if(o!==i) out.push(nm+'：'+nameOf(k,b[i])+'  第'+(o+1)+' → 第'+(i+1)+(i>0?'（放到 '+b[i-1]+' 後面）':'（放到第 1 位）'));
+    }
+  });
+  var s=document.getElementById('sum');
+  if(!out.length){s.textContent='尚未變更';s.className='';document.getElementById('cmdbox').style.display='none'}
+  else {s.textContent=out.join('\n');s.className='has'}
+}
+document.getElementById('reset').onclick=function(){location.reload()};
+document.getElementById('gen').onclick=function(){
+  var cmd=[];
+  Object.keys(ORD).forEach(function(k){
+    if(ORIG[k].join(',')!==ORD[k].join(',')) cmd.push('順位 '+D.lists[k].key+' = '+ORD[k].join(','));
+  });
+  var t=document.getElementById('cmdbox'), b=document.getElementById('gen');
+  if(!cmd.length){ t.value='（沒有變更，不用複製）'; t.style.display='block'; return }
+  t.value=cmd.join('\n'); t.style.display='block';
+  /* 手機上從 textarea 手動選取很難用 => 優先走 Clipboard API（HTTPS + 使用者手勢下可用）；
+     被權限擋就退回 select()+execCommand；再不行就留著讓使用者長按複製。 */
+  function done(ok){ b.textContent = ok?'✓ 已複製':'請長按上面複製'; setTimeout(function(){b.textContent='複製給 Claude'},2200) }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t.value).then(function(){done(true)},function(){ t.select(); done(document.execCommand && document.execCommand('copy')) });
+  } else { t.select(); done(document.execCommand && document.execCommand('copy')) }
+};
+boot();
+</script></body></html>

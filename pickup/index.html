@@ -90,6 +90,17 @@ table.mt th{color:#b45309}
 .odeliv{display:inline-block;font-size:16px;font-weight:900;color:#065f46;background:#e7f8ef;border:2px solid #86e0b0;border-radius:10px;padding:7px 13px}
 .ord.unpaid{opacity:1}
 .ord.got .obar{background:#9aa7b5}
+/* ★#1611 ATM 虛擬帳號：這是【要打進轉帳畫面】的東西 ⇒ 字要大、要能一按全選複製。
+   同 #1046 的道理（電話後3碼/金額要夠大），不可埋在灰字小字裡。
+   user-select:all ⇒ 手機長按一下就整串選起來，不會只選到半截（虛擬帳號選錯一碼就轉錯）。 */
+/* ★#1614 ATM 兩列版：銀行/帳號分開，各自一顆複製鈕（貼進網銀不必再刪空格）。
+   b 仍保留 user-select:all ⇒ 沒有剪貼簿權限時長按也能只選到那一段。 */
+.obar.oatm{background:#0f766e;display:block;padding:10px 12px;text-align:left;letter-spacing:.3px}
+.oatmrow{display:flex;align-items:center;gap:8px;margin:4px 0}
+.oatmrow i{font-style:normal;font-size:13px;opacity:.85;min-width:34px}
+.oatmrow b{font-size:20px;user-select:all;-webkit-user-select:all;flex:1}
+.ocp{font-size:14px;font-weight:900;color:#0f766e;background:#fff;border:0;border-radius:8px;padding:7px 13px;cursor:pointer;white-space:nowrap}
+.ocp.okd{background:#bbf7d0;color:#14532d}
 .ord.got .obarx{color:#9aa7b5;background:#f2f4f7;border-color:#dfe5ec}
 .ord.got .ophone{color:#9aa7b5;background:#f2f4f7;border-color:#dfe5ec}
 .ord.got .oamt{color:#9aa7b5}
@@ -573,8 +584,23 @@ function draw(){
           +(twoStage
               ? (paid
                   ? '<span class="odeliv">🚚 已付款・待宅配到府（收到貨再點整張卡）</span>'
-                  : (o.url?('<a class="obar" href="'+esc(o.url)+'" target="_blank" rel="noopener">💳 開啟繳費條碼</a>'):'<span class="obarx">💳 到超商繳費（訂單頁看條碼）</span>')
-                    +'<button class="opaid" data-p="'+esc(kp)+'">✅ 我已付款</button>')
+                  /* ★#1606（主人 2026-09-22：「誠品宅配應該是轉帳」）：
+                     cvs_barcode=FUNBOX 大型件宅配＋超商條碼；atm_home=誠品宅配＋ATM；atm_transfer=momo ATM。
+                     原本三種型別共用同一句「到超商繳費」⇒ ATM 單會印出錯的動作指示。
+                     而誠品的 OrderUrl 【一律是空】⇒ 永遠走 fallback ⇒ 錯的那句每一張都會出現（實測 5 張全中）。 */
+                  : ((o.ty==='cvs_barcode')
+                      ? (o.url?('<a class="obar" href="'+esc(o.url)+'" target="_blank" rel="noopener">💳 開啟繳費條碼</a>'):'<span class="obarx">💳 到超商繳費（訂單頁看條碼）</span>')
+                      /* ★#1611：抓得到銀行+虛擬帳號就【直接印在卡片上】，主人不必切回 App。
+                         每張單的虛擬帳號都不一樣(per-order)，所以一定要跟著卡片走、不能只印一次。 */
+                      /* ★#1614（主人 2026-09-22：「把匯款帳號跟銀行代碼分開，讓我能複製直接到網路銀行貼上」）
+                         原本印成「013 5508092317428537」一整串 ⇒ 長按全選會**連銀行代碼和空格一起選到**，
+                         貼進網銀還要手動刪 ⇒ 等於沒省到。改成兩列、各一顆複製鈕，複製到的是【純數字】。 */
+                      : (o.pa?('<span class="obar oatm">'
+                          +'<span class="oatmrow"><i>銀行</i><b>'+esc(o.pb||'')+'</b><button class="ocp" data-cp="'+esc(o.pb||'')+'">複製</button></span>'
+                          +'<span class="oatmrow"><i>帳號</i><b class="oacc">'+esc(o.pa)+'</b><button class="ocp" data-cp="'+esc(o.pa)+'">複製</button></span>'
+                          +'</span>')
+                          : (o.url?('<a class="obar" href="'+esc(o.url)+'" target="_blank" rel="noopener">🏧 開啟轉帳資訊</a>'):'<span class="obarx">🏧 ATM 轉帳（訂單頁看銀行帳號）</span>')))
+                    +'<button class="opaid" data-p="'+esc(kp)+'">✅ '+((o.ty==='cvs_barcode')?'我已付款':'我已轉帳')+'</button>')
               : (o.ph?('<span class="ophone"><b>尾</b> '+esc(o.ph)+'</span>'):''))
           +(o.amt?('<span class="oamt">NT$ '+esc(o.amt)+'</span>'):'')
           +'</div>'
@@ -595,7 +621,28 @@ function draw(){
      超商取貨／宅配分頁不顯示（那些是已成立的訂單，沒有代領與誤按的問題）。 */
   var _ln=document.getElementById('lotnote'); if(_ln){ _ln.style.display=(view==='store'?'':'none'); }
 }
+/* ★#1614 複製後備：navigator.clipboard 在非 HTTPS／舊瀏覽器不存在 ⇒ 退回 execCommand。
+   ★兩條路都失敗才 alert 出值，讓主人至少還能手動選——絕不可安靜失敗（按了沒反應最難查）。 */
+function _cpFallback(v,cb){
+  try{var ta=document.createElement('textarea');ta.value=v;ta.setAttribute('readonly','');
+      ta.style.position='fixed';ta.style.top='-1000px';document.body.appendChild(ta);
+      ta.select();ta.setSelectionRange(0,v.length);document.execCommand('copy');
+      document.body.removeChild(ta);cb();}
+  catch(err){alert('複製失敗，請長按選取：'+v);}
+}
 document.addEventListener('click',function(e){
+  /* ★#1614：複製鈕必須排在 .obar 的提早 return【之前】，否則整段被吃掉＝按了沒反應。 */
+  var _cp=e.target.closest('.ocp');
+  if(_cp){
+    e.preventDefault(); e.stopPropagation();
+    var _v=_cp.getAttribute('data-cp')||'';
+    var _ok=function(){ var o=_cp.textContent; _cp.textContent='✓ 已複製'; _cp.classList.add('okd');
+                        setTimeout(function(){_cp.textContent=o;_cp.classList.remove('okd');},1400); };
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(_v).then(_ok,function(){_cpFallback(_v,_ok);});
+    }else{ _cpFallback(_v,_ok); }
+    return;
+  }
   /* ★#1041：訂單卡（超商/宅配）點一下→已完成，走同一個 toggle */
   if(e.target.closest('.obar')){ return; }   /* ★#1059：點繳費條碼連結＝開訂單頁，不可順手把整張標成已完成 */
   /* ★#1288：「我已付款」＝只推進到【待宅配】階段，不結案。必須排在 .ord 之前攔截。 */
