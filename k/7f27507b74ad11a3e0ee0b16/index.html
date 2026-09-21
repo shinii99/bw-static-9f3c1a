@@ -1,0 +1,49 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
+<title>加密</title><style>
+body{font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;margin:0;background:#f4f6f8;color:#222}
+.w{max-width:520px;margin:0 auto;padding:20px}h1{font-size:20px;margin:6px 0 14px}
+label{display:block;font-size:14px;margin:14px 0 6px;color:#555}
+input,textarea{width:100%;box-sizing:border-box;font-size:17px;padding:12px;border:1px solid #ccc;border-radius:10px;background:#fff}
+button{width:100%;font-size:18px;padding:14px;margin-top:16px;border:0;border-radius:12px;background:#2f6fdd;color:#fff}
+button.g{background:#2a9d5c}.n{font-size:13px;color:#777;margin-top:10px;line-height:1.6}.e{color:#c92a2a;font-size:14px;margin-top:8px}
+.row{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:14px;color:#555}.row input{width:auto}
+#o{font-family:monospace;font-size:12px;height:140px;margin-top:8px}</style></head><body><div class="w">
+<h1>🔒 給 Claude 的密碼（手機上加密）</h1>
+<label>用在哪裡（例：寶可夢中心）</label><input id="t" autocomplete="off">
+<div id="ua"><label>帳號（可空白）</label><input id="u" autocomplete="off" autocapitalize="off"></div>
+<div id="xf"></div>
+<div id="pa"><label>密碼</label><input id="p" type="password" autocomplete="new-password">
+<label>再輸入一次密碼</label><input id="p2" type="password" autocomplete="new-password">
+<div class="row"><input type="checkbox" id="s"><span>顯示密碼</span></div></div>
+<div class="e" id="er"></div>
+<button id="b">加密</button>
+<div id="r" style="display:none"><label>把下面這串整段複製，貼給 Claude</label><textarea id="o" readonly></textarea>
+<button class="g" id="c">複製</button></div>
+<div class="n">密碼在這支手機上就變成亂碼，網頁不會把任何東西傳出去；只有家裡那台電腦解得開。按「加密」後輸入欄會自動清空。</div>
+</div><script>
+const PUB={"kty": "RSA", "n": "5cDaUOqfcT2Ie6KTshK0_mr_e9-ZzPstuvZJBjuWlQLGIbdWfURRmMnoPSFqfxGmTlPHa6wpfHUr2TvB2-XwthSN2hdiBQSmN-4pJ3Us9DvTJTEVpOe1vZbaslH6Mclw5c-3Yjh9AYmvCWZbSckRVnpGS29ztS8vh8cHx3sTc-mEuAILUA6rTRvSfxA_NtfCsjjq9SXbvnF708xBmIImK6eMYu-vzLFxI0s9uOhxcjUKsZoP8r43vpIvojcNDyrl-NjfWY_1HpFpZoAs1_tClrYXS-4DkmNaT1OhldSk0M1Jlr1El4tMhJ-QSCWbxxKeewElNzhA8EQ5CkA2TemBOO9gvl6amdaDX3V0wXIHpLG49a14uFVOEcx3ITPGk_4YDB9RbH1HmC7zmoMzuRouCWsOmWw30mkRspxdhti-Y0xRSorBILim5nlealaMLdlhRM4oX3BYSHcIUqOxas2ret3eNlR1eHzujU8NUG3QyHH305PDLddLShOiEURfOiPD", "e": "AQAB", "alg": "RSA-OAEP-256", "ext": true};
+const $=i=>document.getElementById(i);
+$('s').onchange=()=>{const t=$('s').checked?'text':'password';$('p').type=t;$('p2').type=t;};
+// #3266 續：網址帶 ?t=用途&f=欄位1,欄位2:選項A|選項B&nopw=1 ⇒ 直接帶出要填的欄位（選項用下拉）、可不要密碼欄
+const Q=new URLSearchParams(location.search);const NOPW=Q.get('nopw')==='1';const XF=(Q.get('f')||'').split(',').map(x=>x.trim()).filter(Boolean);
+if(Q.get('t'))$('t').value=Q.get('t');if(NOPW){$('pa').style.display='none';$('ua').style.display='none';}
+XF.forEach((f,i)=>{const [lab,opt]=f.split(':');const L=document.createElement('label');L.textContent=lab;$('xf').appendChild(L);
+ let el;if(opt){el=document.createElement('select');['（請選）'].concat(opt.split('|')).forEach(o=>{const op=document.createElement('option');op.textContent=o;op.value=o==='（請選）'?'':o;el.appendChild(op)});el.style.cssText='width:100%;font-size:17px;padding:12px;border:1px solid #ccc;border-radius:10px;background:#fff'}
+ else{el=document.createElement('input');el.autocomplete='off';if(/日|生日/.test(lab))el.type='date';}
+ el.id='x'+i;el.dataset.k=lab;$('xf').appendChild(el)});
+$('b').onclick=async()=>{$('er').textContent='';
+ const p=NOPW?'':$('p').value,p2=NOPW?'':$('p2').value;const X={};let miss='';
+ XF.forEach((f,i)=>{const v=$('x'+i).value.trim();if(!v)miss=miss||$('x'+i).dataset.k;X[$('x'+i).dataset.k]=v});
+ if(miss){$('er').textContent='「'+miss+'」還沒填';return}
+ if(!NOPW&&!p){$('er').textContent='密碼是空的';return}
+ if(p!==p2){$('er').textContent='兩次密碼不一樣';return}
+ try{const k=await crypto.subtle.importKey('jwk',PUB,{name:'RSA-OAEP',hash:'SHA-256'},false,['encrypt']);
+  const msg=JSON.stringify({l:$('t').value.trim(),u:$('u').value.trim(),p:p,x:X,at:new Date().toISOString()});
+  const ct=new Uint8Array(await crypto.subtle.encrypt({name:'RSA-OAEP'},k,new TextEncoder().encode(msg)));
+  let s='';ct.forEach(x=>s+=String.fromCharCode(x));
+  $('o').value='BWSEC1.'+btoa(s);$('r').style.display='block';
+  ['p','p2'].forEach(i=>$(i).value='');XF.forEach((f,i)=>$('x'+i).value='');
+ }catch(e){$('er').textContent='加密失敗：'+e}};
+$('c').onclick=async()=>{try{await navigator.clipboard.writeText($('o').value);$('c').textContent='已複製 ✓'}catch(e){$('o').select();document.execCommand('copy');$('c').textContent='已複製 ✓'}};
+</script></body></html>
