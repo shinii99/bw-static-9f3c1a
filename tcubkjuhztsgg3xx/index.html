@@ -1,0 +1,112 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive"><title>清單</title>
+<style>
+body{margin:0;font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;background:#f6f2ea;color:#222}
+header{background:#db0007;color:#fff;padding:14px 16px}header h1{margin:0;font-size:18px}header div{font-size:12px;opacity:.9;margin-top:4px}
+#lock{max-width:340px;margin:60px auto;background:#fff;border-radius:14px;padding:22px;box-shadow:0 2px 8px rgba(0,0,0,.1);text-align:center}
+#lock input[type=password]{width:100%;box-sizing:border-box;font-size:18px;padding:10px;border:1px solid #ccc;border-radius:8px;margin:12px 0}
+#lock button{width:100%;font-size:17px;padding:10px;border:0;border-radius:8px;background:#db0007;color:#fff}
+#lock label{display:block;font-size:13px;color:#666;margin-top:10px}#msg{color:#db0007;font-size:14px;min-height:20px;margin-top:8px}
+.sum{display:flex;gap:8px;padding:12px 12px 0}.sum div{flex:1;background:#fff;border-radius:10px;padding:10px;text-align:center}.sum b{display:block;font-size:22px;color:#db0007}.sum span{font-size:12px;color:#666}
+.syncst{margin:8px 12px 0;font-size:12px;color:#666}.syncst.ok{color:#15803d}.syncst.bad{color:#b91c1c;font-weight:bold}
+.flt{display:flex;gap:8px;margin:10px 12px 0}.flt button{flex:1;padding:8px;border-radius:8px;border:1px solid #db0007;background:#fff;color:#db0007;font-size:14px}.flt button.on{background:#db0007;color:#fff}
+.acct{background:#fff;margin:12px;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.acct h2{margin:0;padding:12px 14px;font-size:16px;background:#ffc72c;display:flex;justify-content:space-between}.acct h2 small{font-weight:normal;font-size:12px}
+.stat{padding:6px 14px;font-size:12px;color:#666;border-bottom:1px solid #eee}
+.w{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid #f0f0f0}.w:last-child{border-bottom:0}
+.w .p{flex:1;font-size:15px}.w .m{font-size:11px;color:#888;margin-top:2px}
+.w a,.w button{font-size:13px;padding:7px 10px;border-radius:8px;white-space:nowrap;text-decoration:none;border:0}
+.w a{background:#db0007;color:#fff}.w button{background:#eee;color:#333}
+.w.used{opacity:.45}.w.used .p{text-decoration:line-through}.w.used button{background:#15803d;color:#fff}
+.none{padding:12px 14px;color:#999;font-size:14px}
+.prep{margin:12px;background:#fff;border:2px solid #db0007;border-radius:12px;overflow:hidden}.prep h2{margin:0;padding:10px 14px;font-size:16px;background:#db0007;color:#fff;display:flex;justify-content:space-between;align-items:center}.prep h2 button{font-size:12px;padding:5px 9px;border-radius:8px;border:0;background:#fff;color:#db0007}.prep .none{font-size:13px}.w .pn{font-size:15px;font-weight:bold}.w button.add{background:#fff3cd;color:#7a5b00}.w button.add.in{background:#ffc72c;color:#222}.w button.out{background:#fff;color:#888;border:1px solid #ddd}.acct h2 button.one{font-size:12px;padding:4px 8px;border-radius:8px;border:0;background:#db0007;color:#fff;margin-left:6px}.prz{margin:12px;background:#fff;border-radius:12px;padding:10px 14px}.prz h3{margin:4px 0 8px;font-size:15px}.prz div{display:flex;justify-content:space-between;font-size:14px;padding:3px 0}
+</style></head><body>
+<header><h1 id="t">清單</h1><div id="u"></div></header>
+<div id="lock"><div>請輸入密碼</div><input id="pw" type="password" autocomplete="current-password" enterkeyhint="go"><button id="go">開啟</button>
+<label><input id="rem" type="checkbox" checked> 這支手機記住密碼</label><div id="msg"></div></div>
+<div id="app"></div>
+<script>
+const LS_PW='mcdpw_v2', LS_GOT='mcdgot_v2', LS_PREP='mcdprep_v1';
+let D=null, SRV={}, PREP={}, VIEW='todo';
+function b64(s){const r=atob(s),a=new Uint8Array(r.length);for(let i=0;i<r.length;i++)a[i]=r.charCodeAt(i);return a}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+async function unlock(pw){
+  const o=JSON.parse((await (await fetch('d.txt?t='+Date.now(),{cache:'no-store'})).text()).trim());
+  const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
+  const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:b64(o.salt),iterations:o.iter,hash:'SHA-256'},base,{name:'AES-CBC',length:256},false,['decrypt']);
+  const all=b64(o.data); const pt=await crypto.subtle.decrypt({name:'AES-CBC',iv:all.slice(0,16)},key,all.slice(16));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+function applySrv(m){SRV={};PREP={};Object.keys(m).forEach(k=>{if(k.indexOf('mcd|')===0) SRV[k]=m[k]; else if(k.indexOf('mcdp|')===0) PREP[k]=m[k]})}
+function pk(k){return 'mcdp|'+k.slice(4)}
+function localPrep(){try{return JSON.parse(localStorage.getItem(LS_PREP)||'{}')}catch(e){return {}}}
+function savePrep(o){localStorage.setItem(LS_PREP,JSON.stringify(o))}
+function inPrep(k){if(used(k)) return false; const l=localPrep(), q=pk(k); if(q in l) return l[q]>0; return !!PREP[q]}
+function localGot(){try{return JSON.parse(localStorage.getItem(LS_GOT)||'{}')}catch(e){return {}}}
+function saveGot(o){localStorage.setItem(LS_GOT,JSON.stringify(o))}
+function used(k){const l=localGot(); if(k in l) return l[k]>0; return !!SRV[k]}
+function syncUrl(){return (D&&D.sync&&D.sync.u&&D.sync.s)?(D.sync.u+'/'+D.sync.s+'/s'):null}
+function setSync(t,c){const e=document.getElementById('syncst'); if(e){e.textContent=t; e.className='syncst '+(c||'')}}
+async function pullSync(){const u=syncUrl(); if(!u){setSync('（未啟用同步，只存這支手機）');return}
+  try{const r=await fetch(u,{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status); const m=await r.json(); applySrv(m);
+    const lp=localPrep(); let cp=false; Object.keys(lp).forEach(q=>{ if((lp[q]>0)===!!PREP[q]){delete lp[q];cp=true} else { pushPrep(q,lp[q]>0) } }); if(cp) savePrep(lp);
+    const l=localGot(); let ch=false; Object.keys(l).forEach(k=>{ if((l[k]>0)===!!SRV[k]){delete l[k];ch=true} else { pushSync(k,l[k]>0) } }); if(ch) saveGot(l);
+    draw(); setSync('☁️ 已同步（兩支手機共用）','ok');
+  }catch(e){setSync('⚠️ 同步失敗，先記在這支手機：'+e.message,'bad')}}
+async function pushSync(k,on){const u=syncUrl(); if(!u) return;
+  setSync('☁️ 同步中…');
+  try{const r=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json; charset=utf-8'},body:JSON.stringify({k:k,t:on?1:0})});
+    if(!r.ok) throw new Error('HTTP '+r.status); const m=await r.json(); applySrv(m);
+    const l=localGot(); if(k in l){delete l[k]; saveGot(l)} draw(); setSync('☁️ 已同步（兩支手機共用）','ok');
+  }catch(e){setSync('⚠️ 沒同步到另一支手機（先記在這支）：'+e.message,'bad')}}
+function toggle(k){const on=!used(k); const wasPrep=inPrep(k); const l=localGot(); l[k]=on?1:-1; saveGot(l); draw(); pushSync(k,on); if(on&&wasPrep) setPrep(k,false)}
+async function pushPrep(q,on){const u=syncUrl(); if(!u) return;
+  try{const r=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json; charset=utf-8'},body:JSON.stringify({k:q,t:on?Date.now():0})});
+    if(!r.ok) throw new Error('HTTP '+r.status); const m=await r.json(); applySrv(m);
+    const lp=localPrep(); if(q in lp){delete lp[q]; savePrep(lp)} draw(); setSync('☁️ 已同步（兩支手機共用）','ok');
+  }catch(e){setSync('⚠️ 預備區沒同步到另一支手機（先記在這支）：'+e.message,'bad')}}
+function setPrep(k,on){if(on&&used(k)) return; const lp=localPrep(); lp[pk(k)]=on?1:-1; savePrep(lp); draw(); pushPrep(pk(k),on)}
+function togglePrep(k){setPrep(k,!inPrep(k))}
+function addOne(p){const c=[]; D.accts.forEach(a=>a.wins.forEach(w=>{if(w.prize===p&&!used(w.k)&&!inPrep(w.k)) c.push(w)})); c.sort((x,y)=>String(x.exp).localeCompare(String(y.exp))||String(x.at).localeCompare(String(y.at))); if(c.length) setPrep(c[0].k,true)}
+function clearPrep(){if(!confirm('清空預備兌換區？（不會改動已兌換）')) return; D.accts.forEach(a=>a.wins.forEach(w=>{if(inPrep(w.k)) setPrep(w.k,false)}))}
+function setView(v){VIEW=v; draw()}
+function draw(){
+  let tw=0,tu=0; const cnt={};
+  D.accts.forEach(a=>{a.wins.forEach(w=>{tw++; if(used(w.k)) tu++; cnt[w.prize]=(cnt[w.prize]||0)+1})});
+  let h='<div class="sum"><div><b>'+(tw-tu)+'</b><span>未兌換</span></div><div><b>'+tu+'</b><span>已兌換</span></div><div><b>'+tw+'</b><span>中獎總數</span></div></div>';
+  h+='<div class="syncst" id="syncst"></div>';
+  // #2332 主人 10/23「做一個預備兌換券區…類似加入購物車…兌換過的一樣不要讓他恢復」：預備區＝已加入且還沒兌換的；按已兌換就離開預備區、不會回來
+  const pw=[]; D.accts.forEach(a=>a.wins.forEach(w=>{if(inPrep(w.k)) pw.push(w)})); pw.sort((x,y)=>x.prize.localeCompare(y.prize)||String(x.exp).localeCompare(String(y.exp)));
+  h+='<div class="prep"><h2><span>🧺 預備兌換 '+pw.length+' 張</span>'+(pw.length?'<button onclick="clearPrep()">清空</button>':'')+'</h2>';
+  if(!pw.length) h+='<div class="none">還沒加入。在下面按「＋預備」或每種獎項的「＋1」，到門市就只看這一區。</div>';
+  pw.forEach(w=>{h+='<div class="w"><div class="p"><div class="pn">'+esc(w.prize)+'</div><div class="m">期限 '+esc(w.exp)+'</div></div>'+(w.url?'<a href="'+esc(w.url)+'" target="_blank" rel="noopener noreferrer">開啟</a>':'')+'<button data-k="'+esc(w.k)+'" onclick="toggle(this.dataset.k)">已兌換</button><button class="out" data-k="'+esc(w.k)+'" onclick="setPrep(this.dataset.k,false)">移出</button></div>'});
+  h+='</div>';
+  h+='<div class="flt"><button class="'+(VIEW==='todo'?'on':'')+'" onclick="setView(\'todo\')">只看未兌換</button><button class="'+(VIEW==='all'?'on':'')+'" onclick="setView(\'all\')">全部</button></div>';
+  // #2143 主人 10/17「依優惠券種類分類、帳號名稱就不用了」：依獎項分組（張數多的在前），組內期限近的在前；不顯示帳號
+  const grp={}; D.accts.forEach(a=>{a.wins.forEach(w=>{(grp[w.prize]=grp[w.prize]||[]).push(w)})});
+  Object.keys(grp).sort((x,y)=>grp[y].length-grp[x].length||x.localeCompare(y)).forEach(p=>{
+    const all=grp[p].slice().sort((x,y)=>String(x.exp).localeCompare(String(y.exp))||String(x.at).localeCompare(String(y.at)));
+    const ws=all.filter(w=>VIEW==='all'||!used(w.k)); const left=all.filter(w=>!used(w.k)).length;
+    if(VIEW==='todo'&&!ws.length) return;
+    h+='<div class="acct"><h2><span>'+esc(p)+'</span><small>未兌換 '+left+'／共 '+all.length+' 張'+(all.some(w=>!used(w.k)&&!inPrep(w.k))?'<button class="one" data-p="'+esc(p)+'" onclick="addOne(this.dataset.p)">＋1</button>':'')+'</small></h2>';
+    if(!ws.length){h+='<div class="none">全部已兌換</div>'}
+    ws.forEach(w=>{const u=used(w.k); h+='<div class="w'+(u?' used':'')+'"><div class="p">期限 '+esc(w.exp)+'<div class="m">中獎 '+esc(w.at)+'</div></div>'+(w.url?'<a href="'+esc(w.url)+'" target="_blank" rel="noopener noreferrer">開啟</a>':'')+(u?'':'<button class="add'+(inPrep(w.k)?' in':'')+'" data-k="'+esc(w.k)+'" onclick="togglePrep(this.dataset.k)">'+(inPrep(w.k)?'✓預備':'＋預備')+'</button>')+'<button data-k="'+esc(w.k)+'" onclick="toggle(this.dataset.k)">'+(u?'已兌換 ✓':'標記已兌換')+'</button></div>'});
+    h+='</div>';
+  });
+  if(VIEW==='todo'&&tw===tu) h+='<div class="none" style="margin:12px">全部已兌換</div>';
+  const st=document.getElementById('syncst'); const keep=st?[st.textContent,st.className]:null;
+  document.getElementById('app').innerHTML=h;
+  if(keep){const e=document.getElementById('syncst'); e.textContent=keep[0]; e.className=keep[1]}
+}
+async function go(pw,fromSaved){
+  document.getElementById('msg').textContent='解鎖中…';
+  try{ D=await unlock(pw); }catch(e){ document.getElementById('msg').textContent=fromSaved?'':'密碼不正確'; if(fromSaved) localStorage.removeItem(LS_PW); return }
+  if(!fromSaved && document.getElementById('rem').checked) localStorage.setItem(LS_PW,pw);
+  document.getElementById('lock').remove();
+  document.getElementById('t').textContent=D.title; document.getElementById('u').textContent='更新 '+D.updatedAt+'｜'+D.note;
+  draw(); pullSync();
+}
+document.getElementById('go').onclick=()=>go(document.getElementById('pw').value,false);
+document.getElementById('pw').addEventListener('keydown',e=>{if(e.key==='Enter') go(e.target.value,false)});
+const saved=localStorage.getItem(LS_PW); if(saved) go(saved,true);
+</script></body></html>
